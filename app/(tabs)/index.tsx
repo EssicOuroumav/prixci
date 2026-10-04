@@ -109,8 +109,19 @@ function LignePrixOfficiel({
           </Text>
         )}
       </View>
-      <Text style={styles.lignePrix}>{reference.prix.toLocaleString("fr-FR")} F</Text>
-      <Text style={styles.ligneUnite}>/{LABELS_UNITE[reference.unite] ?? reference.unite}</Text>
+      <View style={{ alignItems: "flex-end" }}>
+        <Text style={styles.lignePrix}>
+          {reference.prix.toLocaleString("fr-FR")} F
+          <Text style={styles.ligneUnite}> /{LABELS_UNITE[reference.unite] ?? reference.unite}</Text>
+        </Text>
+        {reference.prixMin != null &&
+          reference.prixMax != null &&
+          reference.prixMin !== reference.prixMax && (
+            <Text style={styles.ligneSousTexte}>
+              de {reference.prixMin.toLocaleString("fr-FR")} à {reference.prixMax.toLocaleString("fr-FR")}
+            </Text>
+          )}
+      </View>
     </View>
   );
 }
@@ -186,7 +197,10 @@ export default function HomeScreen() {
   const commercesConformes = commerces.filter((c) => c.statut === "conforme");
   const autresCommerces = commerces.filter((c) => c.statut !== "conforme");
   const typeReference = references[0]?.type ?? "moyen";
-  const reference0 = references[0];
+  // Une ville peut combiner plusieurs publications officielles
+  const sources = [
+    ...new Map(references.map((r) => [r.source, r])).values(),
+  ].sort((a, b) => b.dateDebut.localeCompare(a.dateDebut));
 
   const syncIndicator = (): { icone: NomIcone; texte: string } | null => {
     if (syncStatus === "syncing") return { icone: "sync-outline", texte: "Synchronisation…" };
@@ -321,11 +335,14 @@ export default function HomeScreen() {
                   <View style={styles.sourceBox}>
                     <Icone nom="information-circle-outline" taille={15} couleur="#555555" />
                     <Text style={styles.sourceTexte}>
-                      {libelleReference(typeReference)}
-                      {reference0?.dateFin
-                        ? ` · semaine du ${dateCourte(reference0.dateDebut)} au ${dateCourte(reference0.dateFin)}`
-                        : ""}
-                      {"\n"}Source : {reference0?.source}
+                      {libelleReference(typeReference)}, indicatif.
+                      {sources
+                        .map(
+                          (s) =>
+                            `\n${s.source}` +
+                            (s.dateFin ? `, du ${dateCourte(s.dateDebut)} au ${dateCourte(s.dateFin)}` : "")
+                        )
+                        .join("")}
                     </Text>
                   </View>
                   {references.map((r) => (

@@ -3,19 +3,19 @@
 Mise à jour : 4 octobre 2026. Le but du produit et les règles sont dans `CONTEXTE.md`.
 
 ## Fait
-- Prix officiels visibles dès l'ouverture : bulletin « C'est combien ? » du 28 septembre au 5 octobre 2026, 6 villes
+- Prix officiels visibles dès l'ouverture : bulletin « C'est combien ? » du 28 septembre au 5 octobre 2026 (6 villes) et relevé OCPV du 7 au 13 septembre 2026 (24 régions, prix mini, maxi et moyen)
 - Classement des commerces : « au prix officiel » ou « dépassements constatés », fiche par commerce, itinéraire
 - Validation d'un prix par 3 citoyens concordants (remplace les 10 confirmations)
-- Grand Abidjan (13 communes) et 5 villes de l'intérieur
+- Grand Abidjan (13 communes) et 23 villes de l'intérieur
 - Transport : trajets intra-commune, moment du trajet
 - Produits ajoutés : riz importé, huile raffinée, tomate concentrée, pâtes, lait, pain, gaz B6 et B12, charbon, carburant
 - Partage WhatsApp, signalement d'abus, limites anti-abus côté serveur
 - Logo, icônes, séparation alimentation / transport, application vide au départ
 
 ## À faire maintenant
-1. Exécuter `supabase_migration_v3.sql` dans le SQL Editor de Supabase
-2. Relire les prix du bulletin saisis depuis les captures (`constants/prixOfficiels.ts`)
-3. Chaque semaine : ajouter le nouveau bulletin dans la table `prix_reference`
+1. Exécuter `supabase_migration_v4.sql` dans le SQL Editor de Supabase (la v3 est déjà passée)
+2. Relire les prix saisis : bulletin (`constants/prixOfficiels.ts`) et relevé OCPV (`constants/prixOfficielsOcpv.ts`)
+3. Chaque semaine : ajouter le nouveau bulletin ou relevé dans la table `prix_reference` (relevés OCPV : economie-ivoirienne.ci/info-prix.html)
 4. Tester sur un téléphone Android
 
 ## Prochaine étape de développement

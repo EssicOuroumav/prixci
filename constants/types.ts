@@ -182,14 +182,32 @@ export const COMMUNES_ABIDJAN = [
   "Yopougon",
 ] as const;
 
-/** Villes disposant de prix officiels dans le bulletin hebdomadaire. */
+/** Villes disposant de prix officiels (bulletin « C'est combien ? » ou relevé OCPV). */
 export const VILLES = [
   "Abidjan",
   "Bouaké",
   "Yamoussoukro",
   "San-Pédro",
   "Korhogo",
+  "Daloa",
   "Man",
+  "Gagnoa",
+  "Abengourou",
+  "Aboisso",
+  "Adzopé",
+  "Agboville",
+  "Bondoukou",
+  "Bongouanou",
+  "Bouaflé",
+  "Dabou",
+  "Dimbokro",
+  "Duékoué",
+  "Méagui",
+  "Minignan",
+  "Odienné",
+  "Ouangolodougou",
+  "Séguéla",
+  "Toumodi",
 ] as const;
 
 export type Ville = (typeof VILLES)[number];

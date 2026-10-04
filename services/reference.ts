@@ -2,6 +2,7 @@ import {
   BULLETIN_EMBARQUE,
   PRIX_OFFICIELS_EMBARQUES,
 } from "@/constants/prixOfficiels";
+import { PRIX_OCPV, RELEVE_OCPV } from "@/constants/prixOfficielsOcpv";
 import { villeDeZone } from "@/constants/types";
 
 // ============================================================
@@ -19,6 +20,9 @@ export interface PrixReference {
   unite: string;
   ville: string;
   prix: number;
+  /** Prix mini et maxi relevés sur les marchés, quand la source les donne */
+  prixMin?: number | null;
+  prixMax?: number | null;
   dateDebut: string;
   dateFin: string | null;
   source: string;
@@ -26,6 +30,7 @@ export interface PrixReference {
 
 // Écart toléré avant de dire qu'un commerce dépasse le prix officiel.
 // Aucun pour un plafond légal ; 5 % pour un prix moyen, qui est arrondi.
+// Quand la source donne un prix maxi relevé, c'est lui qui sert de limite.
 const TOLERANCE: Record<TypeReference, number> = { plafond: 0, moyen: 0.05 };
 
 const index = new Map<string, PrixReference>();
@@ -46,11 +51,28 @@ function enregistrer(r: PrixReference): void {
 }
 
 /**
- * (Re)construit l'index : le bulletin embarqué d'abord, puis les lignes
- * venues du serveur (plus récentes, ou plafonds légaux).
+ * (Re)construit l'index : les deux publications embarquées d'abord, puis les
+ * lignes venues du serveur (plus récentes, ou plafonds légaux).
+ * Pour un même produit dans une même ville, la publication la plus récente gagne.
  */
 export function chargerReferences(duServeur: PrixReference[] = []): void {
   index.clear();
+  for (const ligne of PRIX_OCPV) {
+    for (const [ville, [prixMin, prixMax, prix]] of Object.entries(ligne.prix)) {
+      enregistrer({
+        type: RELEVE_OCPV.type,
+        produitId: ligne.produitId,
+        unite: ligne.unite,
+        ville,
+        prix,
+        prixMin,
+        prixMax,
+        dateDebut: RELEVE_OCPV.dateDebut,
+        dateFin: RELEVE_OCPV.dateFin,
+        source: RELEVE_OCPV.source,
+      });
+    }
+  }
   for (const ligne of PRIX_OFFICIELS_EMBARQUES) {
     for (const [ville, prix] of Object.entries(ligne.prix)) {
       enregistrer({
@@ -94,7 +116,10 @@ export function comparerAuPrixOfficiel(
 ): { statut: Conformite; ecartPct: number | null } {
   if (!reference) return { statut: "sans_reference", ecartPct: null };
   const ecartPct = Math.round(((prix - reference.prix) / reference.prix) * 100);
-  const limite = reference.prix * (1 + TOLERANCE[reference.type]);
+  const limite = Math.max(
+    reference.prix * (1 + TOLERANCE[reference.type]),
+    reference.type === "moyen" ? reference.prixMax ?? 0 : 0
+  );
   return { statut: prix <= limite ? "conforme" : "depassement", ecartPct };
 }
 

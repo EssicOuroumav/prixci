@@ -86,6 +86,16 @@ async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
     );
   `);
 
+  // Colonnes ajoutées après coup : prix mini et maxi d'un prix officiel
+  const colonnesRef = await db.getAllAsync<{ name: string }>(
+    "PRAGMA table_info(prix_reference)"
+  );
+  if (!colonnesRef.some((c) => c.name === "prix_min")) {
+    await db.execAsync(
+      "ALTER TABLE prix_reference ADD COLUMN prix_min REAL; ALTER TABLE prix_reference ADD COLUMN prix_max REAL;"
+    );
+  }
+
   // Colonne ajoutée après la première version : moment du trajet (transport)
   const colonnes = await db.getAllAsync<{ name: string }>(
     "PRAGMA table_info(signalements)"
@@ -650,9 +660,12 @@ export async function saveReferences(refs: PrixReference[]): Promise<void> {
   for (const r of refs) {
     await db.runAsync(
       `INSERT OR REPLACE INTO prix_reference
-        (type, produit_id, unite, ville, prix, date_debut, date_fin, source)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [r.type, r.produitId, r.unite, r.ville, r.prix, r.dateDebut, r.dateFin, r.source]
+        (type, produit_id, unite, ville, prix, prix_min, prix_max, date_debut, date_fin, source)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        r.type, r.produitId, r.unite, r.ville, r.prix,
+        r.prixMin ?? null, r.prixMax ?? null, r.dateDebut, r.dateFin, r.source,
+      ]
     );
   }
 }
@@ -666,6 +679,8 @@ export async function getReferences(): Promise<PrixReference[]> {
     unite: r.unite,
     ville: r.ville,
     prix: r.prix,
+    prixMin: r.prix_min ?? null,
+    prixMax: r.prix_max ?? null,
     dateDebut: r.date_debut,
     dateFin: r.date_fin ?? null,
     source: r.source ?? "",

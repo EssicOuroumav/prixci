@@ -22,7 +22,7 @@ await db.exec(`
   GRANT USAGE ON SCHEMA auth TO anon, authenticated;
   GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA auth TO anon, authenticated;
 `);
-for (const f of ["supabase_schema.sql", "supabase_migration_sprint3.sql", "supabase_migration_v2.sql", "supabase_migration_v2.sql", "supabase_migration_v3.sql", "supabase_migration_v3.sql"]) {
+for (const f of ["supabase_schema.sql", "supabase_migration_sprint3.sql", "supabase_migration_v2.sql", "supabase_migration_v2.sql", "supabase_migration_v3.sql", "supabase_migration_v3.sql", "supabase_migration_v4.sql", "supabase_migration_v4.sql"]) {
   try { await db.exec(readFileSync(P + f, "utf8")); ok("script exécuté : " + f, true); }
   catch (e) { ok("script exécuté : " + f, false, e.message); }
 }
@@ -103,8 +103,10 @@ ok("prix officiel : le propriétaire peut supprimer", (await en(A, `DELETE FROM 
 
 // ── Prix officiels et limites anti-abus (migration v3) ──
 const nbRef = (await en(null, `SELECT COUNT(*)::int n, COUNT(DISTINCT ville)::int v FROM prix_reference`)).rows[0];
-ok("prix officiels : bulletin chargé une seule fois, 6 villes", nbRef.n === 339 && nbRef.v === 6, `${nbRef.n} lignes`);
-ok("prix officiels : patate douce à Abidjan = 700", Number((await en(null, `SELECT prix FROM prix_reference WHERE produit_id='patate-douce' AND ville='Abidjan'`)).rows[0].prix) === 700);
+ok("prix officiels : bulletin (339) et relevé OCPV (552) chargés une seule fois, 24 villes", nbRef.n === 891 && nbRef.v === 24, `${nbRef.n} lignes, ${nbRef.v} villes`);
+const ocpv = (await en(null, `SELECT prix, prix_min, prix_max FROM prix_reference WHERE produit_id='banane-plantain' AND ville='Abidjan' AND date_debut='2026-09-07'`)).rows[0];
+ok("relevé OCPV : banane plantain à Abidjan = 510 (de 300 à 810)", Number(ocpv.prix) === 510 && Number(ocpv.prix_min) === 300 && Number(ocpv.prix_max) === 810);
+ok("prix officiels : patate douce à Abidjan = 700", Number((await en(null, `SELECT prix FROM prix_reference WHERE produit_id='patate-douce' AND ville='Abidjan' AND date_debut='2026-09-28'`)).rows[0].prix) === 700);
 await refuse("prix officiels : un utilisateur ne peut pas les modifier", A, `UPDATE prix_reference SET prix = 1`);
 await refuse("prix officiels : un utilisateur ne peut pas en ajouter", A, `INSERT INTO prix_reference (type,produit_id,produit_nom,unite,ville,prix,date_debut) VALUES ('plafond','x','x','kg','Abidjan',1,NOW())`);
 ok("transport : moment par défaut « normal »", (await admin(`SELECT moment FROM signalements WHERE id='s1'`)).rows[0].moment === "normal");

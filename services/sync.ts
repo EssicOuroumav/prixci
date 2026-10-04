@@ -239,6 +239,8 @@ async function pullPrixReference(): Promise<void> {
     unite: r.unite,
     ville: r.ville,
     prix: Number(r.prix),
+    prixMin: r.prix_min != null ? Number(r.prix_min) : null,
+    prixMax: r.prix_max != null ? Number(r.prix_max) : null,
     dateDebut: r.date_debut,
     dateFin: r.date_fin ?? null,
     source: r.source ?? "",
