@@ -2,7 +2,7 @@ import React, { useState, useCallback } from "react";
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { getEnseignesByCommune, infoTypeEnseigne, Enseigne } from "@/services/enseignes";
-import { COMMUNES_ABIDJAN } from "@/constants/types";
+import SelecteurZone from "@/components/SelecteurZone";
 import { useAppStore } from "@/stores/useAppStore";
 import Icone from "@/components/Icone";
 
@@ -47,13 +47,7 @@ export default function EnseignesScreen() {
         <Text style={styles.title}>Enseignes</Text>
         <Text style={styles.subtitle}>Prix officiels par commune</Text>
       </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.communeScroll}>
-        {COMMUNES_ABIDJAN.map((c) => (
-          <TouchableOpacity key={c} style={[styles.communeChip, commune === c && styles.communeChipActive]} onPress={() => setCommune(c)}>
-            <Text style={[styles.communeText, commune === c && styles.communeTextActive]}>{c}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      <SelecteurZone zone={commune} onChange={setCommune} />
       <ScrollView style={styles.list} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
         {loading ? (
           <ActivityIndicator color="#0A5F38" style={{ marginTop: 40 }} />

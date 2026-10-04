@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
-import { SEUIL_CONFIRMATIONS } from "@/services/scoring";
+import { SEUIL_APPUIS } from "@/services/scoring";
 
 // ============================================================
 // CONDITIONS D'UTILISATION ET CONFIDENTIALITÉ
@@ -22,7 +22,7 @@ const SECTIONS: { titre: string; texte: string }[] = [
   {
     titre: "3. Comment un prix devient public",
     texte:
-      `Un signalement entre dans les moyennes et les comparaisons après ${SEUIL_CONFIRMATIONS} confirmations d'autres utilisateurs. Un signalement trop contesté est masqué. Tu peux signaler un contenu abusif depuis sa fiche ; l'équipe peut retirer tout contenu contraire à ces conditions.`,
+      `Un prix est considéré comme vérifié quand ${SEUIL_APPUIS} citoyens différents l'ont constaté au même endroit. Seuls les prix vérifiés servent à classer un commerce. Les prix officiels affichés proviennent des publications de l'État ; un prix moyen officiel est indicatif, seul un prix plafonné par arrêté est obligatoire. Un signalement trop contesté est masqué. Tu peux signaler un contenu abusif depuis sa fiche ; l'équipe peut retirer tout contenu contraire à ces conditions.`,
   },
   {
     titre: "4. Enseignes",

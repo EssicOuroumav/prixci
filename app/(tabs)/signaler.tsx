@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -13,14 +13,24 @@ import {
 } from "react-native";
 import * as Location from "expo-location";
 import * as Crypto from "expo-crypto";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { useAppStore } from "@/stores/useAppStore";
-import { insertSignalement } from "@/services/db";
+import { insertSignalement, getLieuxConnus, dejaSignaleAujourdhui } from "@/services/db";
+import { prixDeReference, comparerAuPrixOfficiel, libelleReference } from "@/services/reference";
 import { syncAvecStore } from "@/services/sync";
-import { scoreInitialSignalement, SEUIL_CONFIRMATIONS } from "@/services/scoring";
+import { scoreInitialSignalement, SEUIL_APPUIS } from "@/services/scoring";
+import SelecteurZone from "@/components/SelecteurZone";
 import Icone from "@/components/Icone";
 import SelecteurCategorie from "@/components/SelecteurCategorie";
-import { Signalement, COMMUNES_ABIDJAN, TYPES_LIEU, TypeLieu, Unite } from "@/constants/types";
+import {
+  Signalement,
+  TYPES_LIEU,
+  TypeLieu,
+  Unite,
+  MomentTrajet,
+  MOMENTS_TRAJET,
+  infoTypeLieu,
+} from "@/constants/types";
 import {
   PRODUITS_REF,
   LABELS_SOUS_CATEGORIE,
@@ -72,12 +82,41 @@ export default function SignalerScreen() {
   const [quartier, setQuartier] = useState("");
   const [typeLieu, setTypeLieu] = useState<TypeLieu>("marche_traditionnel");
   const [nomLieu, setNomLieu] = useState("");
+  const [moment, setMoment] = useState<MomentTrajet>("normal");
   const [recherche, setRecherche] = useState("");
   const [loading, setLoading] = useState(false);
+  const [lieuxConnus, setLieuxConnus] = useState<{ typeLieu: string; nomLieu: string }[]>([]);
+
+  // Arrivée depuis la fiche d'un commerce : le lieu est déjà connu
+  const prerempli = useLocalSearchParams<{ commune?: string; typeLieu?: string; nomLieu?: string }>();
+  useEffect(() => {
+    if (!prerempli.nomLieu) return;
+    setNomLieu(prerempli.nomLieu);
+    if (prerempli.typeLieu) setTypeLieu(prerempli.typeLieu as TypeLieu);
+    if (prerempli.commune) setCommuneSelectee(prerempli.commune);
+  }, [prerempli.nomLieu, prerempli.typeLieu, prerempli.commune]);
+
+  // Commerces déjà cités dans la zone, pour réutiliser exactement le même nom
+  useEffect(() => {
+    getLieuxConnus(communeSelectee).then(setLieuxConnus).catch(() => setLieuxConnus([]));
+  }, [communeSelectee, etape]);
 
   const produit = PRODUITS_REF.find((p) => p.id === produitSelectionne);
   const estTransport = produit?.categorie === "transport";
   const prixNum = lirePrix(prixSaisi);
+
+  // Prix officiel du produit dans la zone, dans l'unité choisie
+  const reference =
+    produit && uniteSelectionnee
+      ? prixDeReference(produit.id, uniteSelectionnee, communeSelectee)
+      : null;
+  const comparaison = prixNum > 0 ? comparerAuPrixOfficiel(prixNum, reference) : null;
+
+  const saisieLieu = nomLieu.trim().toLowerCase();
+  const suggestions = lieuxConnus
+    .filter((l) => !saisieLieu || l.nomLieu.toLowerCase().includes(saisieLieu))
+    .filter((l) => l.nomLieu.toLowerCase() !== saisieLieu)
+    .slice(0, 6);
 
   const reinitialiser = () => {
     setEtape("produit");
@@ -87,6 +126,7 @@ export default function SignalerScreen() {
     setQuartier("");
     setTypeLieu("marche_traditionnel");
     setNomLieu("");
+    setMoment("normal");
     setRecherche("");
   };
 
@@ -123,8 +163,26 @@ export default function SignalerScreen() {
       return;
     }
 
+    // Un commerce ne peut être classé que s'il est nommé
+    const lieu = nomLieu.trim().replace(/\s+/g, " ");
+    if (!estTransport && lieu.length < 3) {
+      Alert.alert(
+        "Nom du commerce manquant",
+        "Indique le nom du commerce ou du marché : c'est ce qui permet de savoir où ce prix est pratiqué."
+      );
+      return;
+    }
+
     setLoading(true);
     try {
+      if (await dejaSignaleAujourdhui(user.id, produit.id, communeSelectee, lieu)) {
+        Alert.alert(
+          "Déjà signalé",
+          "Tu as déjà signalé ce produit à cet endroit aujourd'hui. Tu pourras le refaire demain."
+        );
+        return;
+      }
+
       const { latitude, longitude } = await lirePosition();
 
       const id = await Crypto.digestStringAsync(
@@ -145,7 +203,8 @@ export default function SignalerScreen() {
         commune: communeSelectee,
         quartier: quartier.trim(),
         typeLieu: estTransport ? "gare_routiere" : typeLieu,
-        nomLieu: nomLieu.trim(),
+        nomLieu: lieu,
+        moment: estTransport ? moment : "normal",
         latitude,
         longitude,
         dateSignalement: maintenant,
@@ -166,7 +225,7 @@ export default function SignalerScreen() {
       reinitialiser();
       Alert.alert(
         "Signalement enregistré",
-        `${nomProduit} à ${prix.toLocaleString("fr-FR")} FCFA, ${communeSelectee}.\n\nIl deviendra public après ${SEUIL_CONFIRMATIONS} confirmations d'autres citoyens.`,
+        `${nomProduit} à ${prix.toLocaleString("fr-FR")} FCFA, ${communeSelectee}.\n\nIl sera vérifié dès que ${SEUIL_APPUIS} citoyens auront constaté le même prix.`,
         [{ text: "OK", onPress: () => router.navigate("/(tabs)") }]
       );
     } catch (err) {
@@ -215,9 +274,9 @@ export default function SignalerScreen() {
                   }}
                 >
                   <Text style={styles.produitNom}>{p.nom}</Text>
-                  {p.prixReference && (
+                  {prixDeReference(p.id, p.uniteDefaut, communeSelectee) && (
                     <Text style={styles.produitRef}>
-                      Réf: {p.prixReference.toLocaleString("fr-FR")} FCFA
+                      Officiel : {prixDeReference(p.id, p.uniteDefaut, communeSelectee)!.prix.toLocaleString("fr-FR")} FCFA
                       /{LABELS_UNITE[p.uniteDefaut]}
                     </Text>
                   )}
@@ -252,14 +311,27 @@ export default function SignalerScreen() {
         >
           <Text style={styles.produitChoisi}>{produit?.nom}</Text>
 
-          {produit?.prixReference && (
-            <View style={styles.refBox}>
-              <Text style={styles.refText}>
-                Prix de référence :{" "}
+          {reference && (
+            <View
+              style={[
+                styles.refBox,
+                comparaison?.statut === "depassement" && { backgroundColor: "#FDECEA" },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.refText,
+                  comparaison?.statut === "depassement" && { color: "#C0392B" },
+                ]}
+              >
+                {libelleReference(reference.type)} à {reference.ville} :{" "}
                 <Text style={styles.refPrix}>
-                  {produit.prixReference.toLocaleString("fr-FR")} FCFA
+                  {reference.prix.toLocaleString("fr-FR")} FCFA
                 </Text>
-                /{LABELS_UNITE[produit.uniteDefaut]}
+                /{LABELS_UNITE[reference.unite] ?? reference.unite}
+                {comparaison?.statut === "depassement"
+                  ? `\nLe prix saisi le dépasse de ${comparaison.ecartPct} %.`
+                  : ""}
               </Text>
             </View>
           )}
@@ -336,19 +408,9 @@ export default function SignalerScreen() {
         </View>
 
         {/* Commune */}
-        <Text style={styles.label}>Commune</Text>
-        <View style={styles.typeLieuGrid}>
-          {COMMUNES_ABIDJAN.map((c) => (
-            <TouchableOpacity
-              key={c}
-              style={[styles.communeChip, communeSelectee === c && styles.communeChipActive]}
-              onPress={() => setCommuneSelectee(c)}
-            >
-              <Text style={[styles.communeChipText, communeSelectee === c && styles.communeChipTextActive]}>
-                {c}
-              </Text>
-            </TouchableOpacity>
-          ))}
+        <Text style={styles.label}>Ville et commune</Text>
+        <View style={styles.zoneBox}>
+          <SelecteurZone zone={communeSelectee} onChange={setCommuneSelectee} />
         </View>
 
         {/* Quartier */}
@@ -383,9 +445,9 @@ export default function SignalerScreen() {
           </>
         )}
 
-        {/* Nom du lieu */}
+        {/* Nom du commerce (alimentation) ou de la gare (transport) */}
         <Text style={styles.label}>
-          {estTransport ? "Gare ou arrêt de départ (optionnel)" : "Nom du lieu (optionnel)"}
+          {estTransport ? "Gare ou arrêt de départ (optionnel)" : "Nom du commerce ou du marché"}
         </Text>
         <TextInput
           style={styles.champ}
@@ -399,9 +461,49 @@ export default function SignalerScreen() {
           placeholderTextColor="#AAAAAA"
           maxLength={80}
         />
+        {!estTransport && suggestions.length > 0 && (
+          <View style={styles.typeLieuGrid}>
+            {suggestions.map((l) => (
+              <TouchableOpacity
+                key={`${l.typeLieu}|${l.nomLieu}`}
+                style={styles.suggestion}
+                onPress={() => {
+                  setNomLieu(l.nomLieu);
+                  setTypeLieu(l.typeLieu as TypeLieu);
+                }}
+              >
+                <Icone nom={infoTypeLieu(l.typeLieu).icone} taille={14} couleur={VERT} />
+                <Text style={styles.suggestionText}>{l.nomLieu}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
         <Text style={styles.fieldHint}>
-          Plus tu es précis, plus les citoyens peuvent trouver le bon endroit.
+          {estTransport
+            ? "Plus tu es précis, plus le tarif est utile aux autres."
+            : "Choisis un nom déjà proposé s'il s'agit du même commerce : c'est ce qui permet de le classer."}
         </Text>
+
+        {/* Moment du trajet : le tarif en dépend */}
+        {estTransport && (
+          <>
+            <Text style={styles.label}>Moment du trajet</Text>
+            <View style={styles.typeLieuGrid}>
+              {MOMENTS_TRAJET.map((m) => (
+                <TouchableOpacity
+                  key={m.id}
+                  style={[styles.typeLieuItem, moment === m.id && styles.typeLieuItemActive]}
+                  onPress={() => setMoment(m.id)}
+                >
+                  <Icone nom={m.icone} taille={18} couleur={moment === m.id ? VERT : "#555555"} />
+                  <Text style={[styles.typeLieuLabel, moment === m.id && styles.typeLieuLabelActive]}>
+                    {m.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </>
+        )}
 
         <TouchableOpacity
           style={[styles.submitBtn, loading && styles.nextBtnDisabled]}
@@ -416,7 +518,7 @@ export default function SignalerScreen() {
         </TouchableOpacity>
 
         <Text style={styles.disclaimer}>
-          Ton signalement est anonyme. Il devient public après {SEUIL_CONFIRMATIONS} confirmations d'autres citoyens.
+          Ton signalement est anonyme. Il est vérifié dès que {SEUIL_APPUIS} citoyens constatent le même prix au même endroit.
         </Text>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -436,6 +538,17 @@ const styles = StyleSheet.create({
   },
   headerBack: { color: "rgba(255,255,255,0.8)", fontSize: 14 },
   headerEtape: { color: "rgba(255,255,255,0.8)", fontSize: 12 },
+  zoneBox: { borderRadius: 10, overflow: "hidden", marginBottom: 12 },
+  suggestion: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: "#E8F5EE",
+  },
+  suggestionText: { fontSize: 12, color: "#0A5F38", fontWeight: "600" },
   champ: {
     backgroundColor: "#FFFFFF",
     borderRadius: 10,

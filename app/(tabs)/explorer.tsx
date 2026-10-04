@@ -23,9 +23,10 @@ import {
   infoTypeEnseigne,
   PrixOfficielCompare,
 } from "@/services/enseignes";
-import { SEUIL_CONFIRMATIONS } from "@/services/scoring";
+import { SEUIL_APPUIS } from "@/services/scoring";
+import SelecteurZone from "@/components/SelecteurZone";
 import { LABELS_UNITE } from "@/constants/produits";
-import { COMMUNES_ABIDJAN, infoTypeLieu, Signalement } from "@/constants/types";
+import { infoTypeLieu, infoMoment, Signalement } from "@/constants/types";
 import BoutonsValidation from "@/components/BoutonsValidation";
 import Icone from "@/components/Icone";
 import SelecteurCategorie from "@/components/SelecteurCategorie";
@@ -239,7 +240,8 @@ function CarteEnAttente({
   onVote: () => void;
   onVoirDetail: () => void;
 }) {
-  const restant = Math.max(0, SEUIL_CONFIRMATIONS - signalement.nbConfirmations);
+  const appuis = signalement.appuis ?? 1;
+  const restant = Math.max(0, SEUIL_APPUIS - appuis);
   return (
     <View style={[carteStyles.container, attenteStyles.container]}>
       <View style={carteStyles.header}>
@@ -250,7 +252,9 @@ function CarteEnAttente({
               {signalement.nomLieu || labelTypeLieu(signalement.typeLieu)}
             </Text>
             <Text style={carteStyles.typeLieu}>
-              {labelTypeLieu(signalement.typeLieu)}
+              {signalement.categorie === "transport"
+                ? infoMoment(signalement.moment).label
+                : labelTypeLieu(signalement.typeLieu)}
               {signalement.quartier ? ` · ${signalement.quartier}` : ""} · il y a {dateRelative(signalement.dateSignalement)}
             </Text>
           </View>
@@ -265,7 +269,7 @@ function CarteEnAttente({
       </View>
 
       <Text style={attenteStyles.progression}>
-        {signalement.nbConfirmations} / {SEUIL_CONFIRMATIONS} confirmations · encore {restant} pour devenir public
+        {appuis} / {SEUIL_APPUIS} citoyens l'ont constaté · encore {restant} pour qu'il soit vérifié
       </Text>
 
       <View style={carteStyles.separateur} />
@@ -652,7 +656,7 @@ export default function ExplorerScreen() {
                   À confirmer ({enAttente.length})
                 </Text>
                 <Text style={styles.sectionLabel}>
-                  Tu as vu ce prix ? Confirme-le. Il compte dans les moyennes après {SEUIL_CONFIRMATIONS} confirmations.
+                  Tu as vu ce prix ? Confirme-le. Il est vérifié quand {SEUIL_APPUIS} citoyens l'ont constaté.
                 </Text>
                 {enAttente.map((s) => (
                   <CarteEnAttente
@@ -668,7 +672,7 @@ export default function ExplorerScreen() {
 
             <View style={styles.noteBox}>
               <Text style={styles.noteText}>
-                Les prix des citoyens sont des moyennes sur 30 jours, calculées sur les signalements confirmés au moins {SEUIL_CONFIRMATIONS} fois. Les prix officiels sont publiés par les enseignes elles-mêmes.
+                Les prix des citoyens sont des moyennes sur 30 jours, calculées sur les prix constatés par au moins {SEUIL_APPUIS} citoyens. Les prix officiels sont publiés par les enseignes elles-mêmes.
               </Text>
             </View>
             <View style={{ height: 40 }} />
@@ -686,26 +690,7 @@ export default function ExplorerScreen() {
         <Text style={styles.headerSub}>Comparer les prix par point de vente</Text>
       </View>
 
-      {/* Sélecteur commune */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.communeScroll}
-        contentContainerStyle={styles.communeScrollContent}
-      >
-        {COMMUNES_ABIDJAN.map((c) => (
-          <TouchableOpacity
-            key={c}
-            style={[styles.chip, communeSelectionnee === c && styles.chipActive]}
-            onPress={() => setCommuneSelectionnee(c)}
-          >
-            <Text style={[styles.chipText, communeSelectionnee === c && styles.chipTextActive]}>
-              {c}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
+      <SelecteurZone zone={communeSelectionnee} onChange={setCommuneSelectionnee} />
       <SelecteurCategorie />
 
       {/* Recherche par nom */}

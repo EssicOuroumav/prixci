@@ -16,7 +16,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "legumes_tubercules",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg", "tas"],
-    prixReference: 300,
   },
   {
     id: "banane-plantain",
@@ -25,7 +24,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "legumes_tubercules",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg", "tas", "unité"],
-    prixReference: 400,
   },
   {
     id: "igname-kponan",
@@ -34,7 +32,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "legumes_tubercules",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg", "unité"],
-    prixReference: 600,
   },
   {
     id: "igname-assawa",
@@ -43,7 +40,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "legumes_tubercules",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg", "unité"],
-    prixReference: 500,
   },
   {
     id: "manioc",
@@ -52,7 +48,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "legumes_tubercules",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg", "tas"],
-    prixReference: 200,
   },
   {
     id: "pate-placali",
@@ -61,7 +56,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "legumes_tubercules",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg", "unité"],
-    prixReference: 350,
   },
   {
     id: "pomme-de-terre",
@@ -70,7 +64,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "legumes_tubercules",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg"],
-    prixReference: 700,
   },
 
   // ──────────────────────────────────────────────────────────
@@ -83,16 +76,14 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "legumes_feuilles",
     uniteDefaut: "tas",
     unitesDisponibles: ["tas", "botte"],
-    prixReference: 100,
   },
   {
     id: "chou",
     nom: "Chou",
     categorie: "alimentation",
     sousCategorie: "legumes_feuilles",
-    uniteDefaut: "unité",
-    unitesDisponibles: ["unité", "kg"],
-    prixReference: 400,
+    uniteDefaut: "kg",
+    unitesDisponibles: ["kg", "unité"],
   },
   {
     id: "tomate-salade",
@@ -101,25 +92,22 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "legumes_fruits",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg", "tas"],
-    prixReference: 600,
   },
   {
     id: "concombre",
     nom: "Concombre",
     categorie: "alimentation",
     sousCategorie: "legumes_fruits",
-    uniteDefaut: "unité",
-    unitesDisponibles: ["unité", "kg"],
-    prixReference: 250,
+    uniteDefaut: "kg",
+    unitesDisponibles: ["kg", "unité"],
   },
   {
     id: "courgette",
     nom: "Courgette",
     categorie: "alimentation",
     sousCategorie: "legumes_fruits",
-    uniteDefaut: "unité",
-    unitesDisponibles: ["unité", "kg"],
-    prixReference: 300,
+    uniteDefaut: "kg",
+    unitesDisponibles: ["kg", "unité"],
   },
   {
     id: "navet",
@@ -128,7 +116,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "legumes_fruits",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg", "unité"],
-    prixReference: 400,
   },
   {
     id: "haricot-vert",
@@ -137,16 +124,14 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "legumes_fruits",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg", "tas"],
-    prixReference: 700,
   },
   {
     id: "gombo-frais",
     nom: "Gombo frais",
     categorie: "alimentation",
     sousCategorie: "legumes_fruits",
-    uniteDefaut: "tas",
-    unitesDisponibles: ["tas", "kg"],
-    prixReference: 200,
+    uniteDefaut: "kg",
+    unitesDisponibles: ["kg", "tas"],
   },
   {
     id: "gombo-sec-poudre",
@@ -155,7 +140,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "legumes_fruits",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg", "g"],
-    prixReference: 1500,
   },
   {
     id: "aubergine-ndrowa",
@@ -164,16 +148,14 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "legumes_fruits",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg", "tas"],
-    prixReference: 400,
   },
   {
     id: "piment-frais",
     nom: "Piment frais",
     categorie: "alimentation",
     sousCategorie: "legumes_fruits",
-    uniteDefaut: "tas",
-    unitesDisponibles: ["tas", "kg"],
-    prixReference: 150,
+    uniteDefaut: "kg",
+    unitesDisponibles: ["kg", "tas"],
   },
   {
     id: "poivron",
@@ -182,7 +164,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "legumes_fruits",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg", "unité"],
-    prixReference: 700,
   },
   {
     id: "carotte",
@@ -191,7 +172,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "legumes_fruits",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg"],
-    prixReference: 600,
   },
   {
     id: "oignon-violet-galmi",
@@ -200,7 +180,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "legumes_fruits",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg", "tas"],
-    prixReference: 500,
   },
   {
     id: "oignon-blanc",
@@ -209,7 +188,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "legumes_fruits",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg", "tas"],
-    prixReference: 600,
   },
   {
     id: "graine-de-palme",
@@ -218,7 +196,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "legumes_fruits",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg", "tas"],
-    prixReference: 300,
   },
 
   // ──────────────────────────────────────────────────────────
@@ -231,7 +208,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "proteines_viande",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg"],
-    prixReference: 3500,
   },
   {
     id: "boeuf-avec-os",
@@ -240,7 +216,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "proteines_viande",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg"],
-    prixReference: 2500,
   },
   {
     id: "mouton",
@@ -249,7 +224,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "proteines_viande",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg"],
-    prixReference: 3000,
   },
   {
     id: "porc",
@@ -258,7 +232,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "proteines_viande",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg"],
-    prixReference: 2500,
   },
   {
     id: "cotes-porc",
@@ -267,7 +240,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "proteines_viande",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg"],
-    prixReference: 2000,
   },
   {
     id: "poulet-chair",
@@ -276,16 +248,14 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "proteines_viande",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg", "unité"],
-    prixReference: 2200,
   },
   {
     id: "pintade",
     nom: "Pintade",
     categorie: "alimentation",
     sousCategorie: "proteines_viande",
-    uniteDefaut: "unité",
-    unitesDisponibles: ["unité", "kg"],
-    prixReference: 3500,
+    uniteDefaut: "kg",
+    unitesDisponibles: ["kg", "unité"],
   },
   {
     id: "dinde",
@@ -294,16 +264,14 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "proteines_viande",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg", "unité"],
-    prixReference: 3000,
   },
   {
     id: "lapin",
     nom: "Lapin",
     categorie: "alimentation",
     sousCategorie: "proteines_viande",
-    uniteDefaut: "unité",
-    unitesDisponibles: ["unité", "kg"],
-    prixReference: 4000,
+    uniteDefaut: "kg",
+    unitesDisponibles: ["kg", "unité"],
   },
   {
     id: "pattes-poulet",
@@ -312,7 +280,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "proteines_viande",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg", "tas"],
-    prixReference: 800,
   },
   {
     id: "pattes-boeuf",
@@ -321,7 +288,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "proteines_viande",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg", "unité"],
-    prixReference: 1200,
   },
   {
     id: "escargot",
@@ -330,7 +296,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "proteines_viande",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg", "tas"],
-    prixReference: 2000,
   },
 
   // ──────────────────────────────────────────────────────────
@@ -343,7 +308,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "proteines_poisson",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg"],
-    prixReference: 1500,
   },
   {
     id: "magne-frais",
@@ -352,7 +316,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "proteines_poisson",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg", "unité"],
-    prixReference: 1800,
   },
   {
     id: "magne-sec",
@@ -361,7 +324,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "proteines_poisson",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg"],
-    prixReference: 2500,
   },
   {
     id: "chinchard",
@@ -370,7 +332,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "proteines_poisson",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg", "unité"],
-    prixReference: 1200,
   },
   {
     id: "carpe-importe",
@@ -379,7 +340,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "proteines_poisson",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg", "unité"],
-    prixReference: 2000,
   },
   {
     id: "carpe-aquaculture",
@@ -388,7 +348,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "proteines_poisson",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg", "unité"],
-    prixReference: 2500,
   },
   {
     id: "thon",
@@ -397,7 +356,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "proteines_poisson",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg", "unité"],
-    prixReference: 2500,
   },
   {
     id: "maquereau",
@@ -406,7 +364,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "proteines_poisson",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg", "unité"],
-    prixReference: 1500,
   },
   {
     id: "machoiron",
@@ -415,7 +372,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "proteines_poisson",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg", "unité"],
-    prixReference: 2800,
   },
 
   // ──────────────────────────────────────────────────────────
@@ -426,27 +382,24 @@ export const PRODUITS_REF: ProduitRef[] = [
     nom: "Ananas",
     categorie: "alimentation",
     sousCategorie: "fruits",
-    uniteDefaut: "unité",
-    unitesDisponibles: ["unité", "kg"],
-    prixReference: 500,
+    uniteDefaut: "kg",
+    unitesDisponibles: ["kg", "unité"],
   },
   {
     id: "citron",
     nom: "Citron",
     categorie: "alimentation",
     sousCategorie: "fruits",
-    uniteDefaut: "tas",
-    unitesDisponibles: ["tas", "kg", "unité"],
-    prixReference: 100,
+    uniteDefaut: "kg",
+    unitesDisponibles: ["kg", "tas", "unité"],
   },
   {
     id: "avocat",
     nom: "Avocat",
     categorie: "alimentation",
     sousCategorie: "fruits",
-    uniteDefaut: "unité",
-    unitesDisponibles: ["unité", "kg"],
-    prixReference: 300,
+    uniteDefaut: "kg",
+    unitesDisponibles: ["kg", "unité"],
   },
   {
     id: "noix-coco",
@@ -455,7 +408,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "fruits",
     uniteDefaut: "unité",
     unitesDisponibles: ["unité"],
-    prixReference: 200,
   },
   {
     id: "banane-dessert",
@@ -464,16 +416,14 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "fruits",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg", "tas"],
-    prixReference: 400,
   },
   {
     id: "papaye",
     nom: "Papaye",
     categorie: "alimentation",
     sousCategorie: "fruits",
-    uniteDefaut: "unité",
-    unitesDisponibles: ["unité", "kg"],
-    prixReference: 600,
+    uniteDefaut: "kg",
+    unitesDisponibles: ["kg", "unité"],
   },
   {
     id: "orange",
@@ -482,16 +432,14 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "fruits",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg", "tas", "unité"],
-    prixReference: 500,
   },
   {
     id: "pasteque",
     nom: "Pastèque",
     categorie: "alimentation",
     sousCategorie: "fruits",
-    uniteDefaut: "unité",
-    unitesDisponibles: ["unité", "kg"],
-    prixReference: 1000,
+    uniteDefaut: "kg",
+    unitesDisponibles: ["kg", "unité"],
   },
 
   // ──────────────────────────────────────────────────────────
@@ -502,18 +450,16 @@ export const PRODUITS_REF: ProduitRef[] = [
     nom: "Riz local Wita 9",
     categorie: "alimentation",
     sousCategorie: "cereales_legumineuses",
-    uniteDefaut: "sac_25kg",
+    uniteDefaut: "kg",
     unitesDisponibles: ["kg", "sac_25kg", "sac_50kg"],
-    prixReference: 18000,
   },
   {
     id: "riz-danane",
     nom: "Riz Danané",
     categorie: "alimentation",
     sousCategorie: "cereales_legumineuses",
-    uniteDefaut: "sac_25kg",
+    uniteDefaut: "kg",
     unitesDisponibles: ["kg", "sac_25kg", "sac_50kg"],
-    prixReference: 16000,
   },
   {
     id: "farine-soja",
@@ -522,7 +468,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "cereales_legumineuses",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg"],
-    prixReference: 700,
   },
   {
     id: "farine-mais",
@@ -531,7 +476,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "cereales_legumineuses",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg"],
-    prixReference: 500,
   },
   {
     id: "farine-manioc",
@@ -540,7 +484,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "cereales_legumineuses",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg"],
-    prixReference: 400,
   },
   {
     id: "niebe",
@@ -549,7 +492,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "cereales_legumineuses",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg", "tas"],
-    prixReference: 600,
   },
   {
     id: "fonio-precuit",
@@ -558,7 +500,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "cereales_legumineuses",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg"],
-    prixReference: 1200,
   },
   {
     id: "sesame",
@@ -567,7 +508,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "cereales_legumineuses",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg"],
-    prixReference: 1500,
   },
   {
     id: "sucre-roux",
@@ -576,7 +516,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "cereales_legumineuses",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg"],
-    prixReference: 600,
   },
   {
     id: "sucre-blanc",
@@ -585,7 +524,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "cereales_legumineuses",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg"],
-    prixReference: 700,
   },
   {
     id: "lait-liquide",
@@ -594,7 +532,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "cereales_legumineuses",
     uniteDefaut: "litre",
     unitesDisponibles: ["litre"],
-    prixReference: 800,
   },
 
   // ──────────────────────────────────────────────────────────
@@ -607,7 +544,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "huiles_condiments",
     uniteDefaut: "litre",
     unitesDisponibles: ["litre", "kg"],
-    prixReference: 1200,
   },
   {
     id: "pate-arachide",
@@ -616,7 +552,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "huiles_condiments",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg", "g"],
-    prixReference: 1500,
   },
   {
     id: "pate-pistache",
@@ -625,7 +560,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "huiles_condiments",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg", "g"],
-    prixReference: 2000,
   },
   {
     id: "pate-anacarde",
@@ -634,7 +568,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "huiles_condiments",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg", "g"],
-    prixReference: 2500,
   },
   {
     id: "gingembre",
@@ -643,25 +576,184 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "huiles_condiments",
     uniteDefaut: "kg",
     unitesDisponibles: ["kg", "g", "tas"],
-    prixReference: 1000,
   },
   {
     id: "bissap",
     nom: "Feuille de bissap",
     categorie: "alimentation",
     sousCategorie: "huiles_condiments",
-    uniteDefaut: "tas",
-    unitesDisponibles: ["tas", "kg"],
-    prixReference: 200,
+    uniteDefaut: "kg",
+    unitesDisponibles: ["kg", "tas"],
   },
   {
     id: "tomi",
     nom: "Tomi",
     categorie: "alimentation",
     sousCategorie: "huiles_condiments",
-    uniteDefaut: "tas",
-    unitesDisponibles: ["tas", "kg"],
-    prixReference: 150,
+    uniteDefaut: "kg",
+    unitesDisponibles: ["kg", "tas"],
+  },
+
+  // ──────────────────────────────────────────────────────────
+  // PRODUITS AJOUTÉS DEPUIS LE BULLETIN « C'EST COMBIEN ? »
+  // ──────────────────────────────────────────────────────────
+  {
+    id: "poule-pondeuse",
+    nom: "Poule pondeuse",
+    categorie: "alimentation",
+    sousCategorie: "proteines_viande",
+    uniteDefaut: "kg",
+    unitesDisponibles: ["kg", "unité"],
+  },
+  {
+    id: "pattes-porc",
+    nom: "Pattes de porc",
+    categorie: "alimentation",
+    sousCategorie: "proteines_viande",
+    uniteDefaut: "kg",
+    unitesDisponibles: ["kg"],
+  },
+  {
+    id: "kplo",
+    nom: "Kplo (peau de bœuf)",
+    categorie: "alimentation",
+    sousCategorie: "proteines_viande",
+    uniteDefaut: "unité",
+    unitesDisponibles: ["unité", "kg"],
+  },
+  {
+    id: "farine-sorgho",
+    nom: "Farine de sorgho",
+    categorie: "alimentation",
+    sousCategorie: "cereales_legumineuses",
+    uniteDefaut: "kg",
+    unitesDisponibles: ["kg"],
+  },
+  {
+    id: "farine-mais-kabato",
+    nom: "Farine de maïs (kabato)",
+    categorie: "alimentation",
+    sousCategorie: "cereales_legumineuses",
+    uniteDefaut: "kg",
+    unitesDisponibles: ["kg"],
+  },
+  {
+    id: "farine-mil",
+    nom: "Farine de mil",
+    categorie: "alimentation",
+    sousCategorie: "cereales_legumineuses",
+    uniteDefaut: "kg",
+    unitesDisponibles: ["kg"],
+  },
+  {
+    id: "farine-cajou",
+    nom: "Farine d'amande de cajou",
+    categorie: "alimentation",
+    sousCategorie: "cereales_legumineuses",
+    uniteDefaut: "kg",
+    unitesDisponibles: ["kg"],
+  },
+  // ──────────────────────────────────────────────────────────
+  // ÉPICERIE DE GRANDE CONSOMMATION (produits à prix réglementé)
+  // ──────────────────────────────────────────────────────────
+  {
+    id: "riz-importe",
+    nom: "Riz importé",
+    categorie: "alimentation",
+    sousCategorie: "epicerie",
+    uniteDefaut: "kg",
+    unitesDisponibles: ["kg", "sac_25kg", "sac_50kg"],
+  },
+  {
+    id: "huile-raffinee",
+    nom: "Huile de palme raffinée",
+    categorie: "alimentation",
+    sousCategorie: "epicerie",
+    uniteDefaut: "litre",
+    unitesDisponibles: ["litre"],
+  },
+  {
+    id: "tomate-concentree",
+    nom: "Tomate concentrée",
+    categorie: "alimentation",
+    sousCategorie: "epicerie",
+    uniteDefaut: "boite",
+    unitesDisponibles: ["boite"],
+  },
+  {
+    id: "pates-alimentaires",
+    nom: "Pâtes alimentaires",
+    categorie: "alimentation",
+    sousCategorie: "epicerie",
+    uniteDefaut: "paquet",
+    unitesDisponibles: ["paquet"],
+  },
+  {
+    id: "lait-poudre",
+    nom: "Lait en poudre",
+    categorie: "alimentation",
+    sousCategorie: "epicerie",
+    uniteDefaut: "boite",
+    unitesDisponibles: ["boite", "kg"],
+  },
+  {
+    id: "lait-concentre",
+    nom: "Lait concentré",
+    categorie: "alimentation",
+    sousCategorie: "epicerie",
+    uniteDefaut: "boite",
+    unitesDisponibles: ["boite"],
+  },
+  {
+    id: "pain-baguette",
+    nom: "Pain (baguette)",
+    categorie: "alimentation",
+    sousCategorie: "epicerie",
+    uniteDefaut: "unité",
+    unitesDisponibles: ["unité"],
+  },
+  // ──────────────────────────────────────────────────────────
+  // ÉNERGIE DU MÉNAGE
+  // ──────────────────────────────────────────────────────────
+  {
+    id: "gaz-b6",
+    nom: "Gaz butane B6 (6 kg)",
+    categorie: "alimentation",
+    sousCategorie: "energie",
+    uniteDefaut: "bouteille",
+    unitesDisponibles: ["bouteille"],
+  },
+  {
+    id: "gaz-b12",
+    nom: "Gaz butane B12 (12,5 kg)",
+    categorie: "alimentation",
+    sousCategorie: "energie",
+    uniteDefaut: "bouteille",
+    unitesDisponibles: ["bouteille"],
+  },
+  {
+    id: "charbon-bois",
+    nom: "Charbon de bois",
+    categorie: "alimentation",
+    sousCategorie: "energie",
+    uniteDefaut: "sac",
+    unitesDisponibles: ["sac", "tas"],
+  },
+  {
+    id: "carburant-super",
+    nom: "Carburant super",
+    categorie: "alimentation",
+    sousCategorie: "energie",
+    uniteDefaut: "litre",
+    unitesDisponibles: ["litre"],
+  },
+  {
+    id: "carburant-gasoil",
+    nom: "Gasoil",
+    categorie: "alimentation",
+    sousCategorie: "energie",
+    uniteDefaut: "litre",
+    unitesDisponibles: ["litre"],
   },
 
   // ──────────────────────────────────────────────────────────
@@ -674,7 +766,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "transport_gbaka",
     uniteDefaut: "trajet",
     unitesDisponibles: ["trajet"],
-    prixReference: 200,
   },
   {
     id: "gbaka-abobo-adjame",
@@ -683,7 +774,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "transport_gbaka",
     uniteDefaut: "trajet",
     unitesDisponibles: ["trajet"],
-    prixReference: 200,
   },
   {
     id: "gbaka-yopougon-plateau",
@@ -692,7 +782,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "transport_gbaka",
     uniteDefaut: "trajet",
     unitesDisponibles: ["trajet"],
-    prixReference: 300,
   },
   {
     id: "gbaka-koumassi-adjame",
@@ -701,7 +790,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "transport_gbaka",
     uniteDefaut: "trajet",
     unitesDisponibles: ["trajet"],
-    prixReference: 250,
   },
   {
     id: "gbaka-port-bouet-treichville",
@@ -710,7 +798,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "transport_gbaka",
     uniteDefaut: "trajet",
     unitesDisponibles: ["trajet"],
-    prixReference: 200,
   },
 
   // ──────────────────────────────────────────────────────────
@@ -723,7 +810,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "transport_woro",
     uniteDefaut: "trajet",
     unitesDisponibles: ["trajet"],
-    prixReference: 300,
   },
   {
     id: "woro-marcory-gare-sud",
@@ -732,7 +818,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "transport_woro",
     uniteDefaut: "trajet",
     unitesDisponibles: ["trajet"],
-    prixReference: 250,
   },
   {
     id: "woro-treichville-plateau",
@@ -741,7 +826,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "transport_woro",
     uniteDefaut: "trajet",
     unitesDisponibles: ["trajet"],
-    prixReference: 200,
   },
   {
     id: "woro-koumassi-plateau",
@@ -750,7 +834,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "transport_woro",
     uniteDefaut: "trajet",
     unitesDisponibles: ["trajet"],
-    prixReference: 350,
   },
   {
     id: "woro-attecoubo-plateau",
@@ -759,7 +842,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "transport_woro",
     uniteDefaut: "trajet",
     unitesDisponibles: ["trajet"],
-    prixReference: 200,
   },
 
   // ──────────────────────────────────────────────────────────
@@ -772,7 +854,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "transport_gbaka",
     uniteDefaut: "trajet",
     unitesDisponibles: ["trajet"],
-    prixReference: 100,
   },
   {
     id: "woro-intra-commune",
@@ -781,7 +862,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "transport_woro",
     uniteDefaut: "trajet",
     unitesDisponibles: ["trajet"],
-    prixReference: 200,
   },
   // ──────────────────────────────────────────────────────────
   // TRANSPORT — TAXI COMPTEUR
@@ -793,7 +873,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "transport_taxi",
     uniteDefaut: "trajet",
     unitesDisponibles: ["trajet"],
-    prixReference: 600,
   },
   {
     id: "taxi-intra-commune",
@@ -802,7 +881,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "transport_taxi",
     uniteDefaut: "trajet",
     unitesDisponibles: ["trajet"],
-    prixReference: 1500,
   },
   {
     id: "taxi-inter-commune",
@@ -811,7 +889,6 @@ export const PRODUITS_REF: ProduitRef[] = [
     sousCategorie: "transport_taxi",
     uniteDefaut: "trajet",
     unitesDisponibles: ["trajet"],
-    prixReference: 3000,
   },
 ];
 
@@ -837,6 +914,8 @@ export const LABELS_SOUS_CATEGORIE: Record<string, string> = {
   fruits: "Fruits",
   cereales_legumineuses: "Céréales & Légumineuses",
   huiles_condiments: "Huiles, Pâtes & Condiments",
+  epicerie: "Épicerie (prix réglementés)",
+  energie: "Gaz, charbon & carburant",
   transport_gbaka: "Gbaka",
   transport_woro: "Woro-woro",
   transport_taxi: "Taxi",
@@ -852,5 +931,8 @@ export const LABELS_UNITE: Record<string, string> = {
   sac_25kg: "sac 25kg",
   sac_50kg: "sac 50kg",
   boite: "boîte",
+  paquet: "paquet",
+  bouteille: "bouteille",
+  sac: "sac",
   trajet: "trajet",
 };

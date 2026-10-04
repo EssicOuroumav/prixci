@@ -8,7 +8,10 @@ import {
   upsertSignalementsFromServer,
   getUser,
   saveUser,
+  saveReferences,
+  getReferences,
 } from "./db";
+import { chargerReferences, PrixReference } from "./reference";
 import { SEUILS } from "./scoring";
 import { Signalement } from "@/constants/types";
 import { useAppStore } from "@/stores/useAppStore";
@@ -58,6 +61,7 @@ export async function syncIfOnline(
 
     if (commune) await pullSignalementsFromServer(commune);
     await pullUserProfile(userId);
+    await pullPrixReference();
 
     onStatusChange?.(signalementsOk && validationsOk ? "success" : "error");
   } catch (err) {
@@ -109,9 +113,22 @@ async function pushUnsyncedSignalements(): Promise<boolean> {
 
     if (!error) {
       for (const s of lot) await markSignalementSynced(s.id);
-    } else {
-      toutEnvoye = false;
-      console.warn("[Sync] Erreur push signalements :", error.message);
+      continue;
+    }
+
+    // Un seul signalement refusé (limite anti-abus, doublon) fait échouer le lot :
+    // on renvoie un par un pour ne pas bloquer les autres.
+    for (const s of lot) {
+      const { error: erreurLigne } = await supabase
+        .from("signalements")
+        .upsert(signalementToRow(s), { onConflict: "id", ignoreDuplicates: true });
+
+      if (!erreurLigne || REFUS_DEFINITIFS.includes(erreurLigne.code)) {
+        await markSignalementSynced(s.id);
+      } else {
+        toutEnvoye = false;
+        console.warn("[Sync] Erreur push signalement :", erreurLigne.message);
+      }
     }
   }
   return toutEnvoye;
@@ -203,6 +220,38 @@ async function pullUserProfile(userId: string): Promise<void> {
   });
 }
 
+/**
+ * Prix officiels en vigueur : plafonds légaux et bulletin de la semaine.
+ * Ils sont gardés sur le téléphone pour rester disponibles hors ligne.
+ */
+async function pullPrixReference(): Promise<void> {
+  const { data, error } = await supabase
+    .from("prix_reference")
+    .select("*")
+    .order("date_debut", { ascending: true })
+    .limit(2000);
+
+  if (error || !data) return;
+
+  const refs: PrixReference[] = data.map((r: any) => ({
+    type: r.type,
+    produitId: r.produit_id,
+    unite: r.unite,
+    ville: r.ville,
+    prix: Number(r.prix),
+    dateDebut: r.date_debut,
+    dateFin: r.date_fin ?? null,
+    source: r.source ?? "",
+  }));
+  await saveReferences(refs);
+  chargerReferences(await getReferences());
+}
+
+/** Au démarrage : bulletin embarqué + dernière copie locale des prix officiels. */
+export async function initialiserReferences(): Promise<void> {
+  chargerReferences(await getReferences());
+}
+
 // ─── Mappers ──────────────────────────────────────────────
 
 // Le score et les compteurs de votes ne sont pas envoyés : le serveur les calcule.
@@ -220,6 +269,7 @@ function signalementToRow(s: Signalement): Record<string, unknown> {
     quartier: s.quartier,
     type_lieu: s.typeLieu,
     nom_lieu: s.nomLieu,
+    moment: s.moment,
     latitude: s.latitude ?? null,
     longitude: s.longitude ?? null,
     date_signalement: s.dateSignalement,
@@ -240,6 +290,7 @@ function rowToSignalement(r: Record<string, any>): Signalement {
     quartier: r.quartier ?? "",
     typeLieu: r.type_lieu ?? "autre",
     nomLieu: r.nom_lieu ?? "",
+    moment: r.moment ?? "normal",
     latitude: r.latitude ?? undefined,
     longitude: r.longitude ?? undefined,
     dateSignalement: r.date_signalement,

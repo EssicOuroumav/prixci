@@ -16,14 +16,15 @@ import {
   getValidationsDetail,
   getHistoriqueSignalements,
 } from "@/services/db";
-import { infoTypeLieu } from "@/constants/types";
+import { infoTypeLieu, infoMoment } from "@/constants/types";
+import { partager } from "@/services/partage";
 import Icone from "@/components/Icone";
 import { LABELS_UNITE } from "@/constants/produits";
 import {
   labelScoreFilabilite,
   labelScoreUser,
   estVerifie,
-  SEUIL_CONFIRMATIONS,
+  SEUIL_APPUIS,
 } from "@/services/scoring";
 import { MOTIFS_ABUS, signalerAbus } from "@/services/abus";
 import { useAppStore } from "@/stores/useAppStore";
@@ -591,7 +592,7 @@ export default function DetailScreen() {
   }
 
   const { signalement, auteurPseudonyme, auteurScore } = detail;
-  const verifie = estVerifie(signalement.nbConfirmations);
+  const verifie = estVerifie(signalement.appuis);
   const estLeMien = signalement.userId === user?.id;
   const scoreInfo = labelScoreFilabilite(signalement.scoreFilabilite);
   const badgeAuteur = labelScoreUser(auteurScore);
@@ -630,7 +631,7 @@ export default function DetailScreen() {
             <Text style={[styles.statutText, { color: verifie ? VERT : "#8A5200" }]}>
               {verifie
                 ? "Prix vérifié par la communauté"
-                : `À confirmer · ${signalement.nbConfirmations} / ${SEUIL_CONFIRMATIONS} confirmations`}
+                : `À confirmer · constaté par ${signalement.appuis ?? 1} citoyen${(signalement.appuis ?? 1) > 1 ? "s" : ""} sur ${SEUIL_APPUIS}`}
             </Text>
           </View>
           <View style={styles.heroRow}>
@@ -660,7 +661,9 @@ export default function DetailScreen() {
                 {signalement.nomLieu || labelTypeLieu(signalement.typeLieu)}
               </Text>
               <Text style={styles.lieuHeroType}>
-                {labelTypeLieu(signalement.typeLieu)} · {signalement.commune}
+                {signalement.categorie === "transport"
+                  ? infoMoment(signalement.moment).label
+                  : labelTypeLieu(signalement.typeLieu)} · {signalement.commune}
                 {signalement.quartier ? ` · ${signalement.quartier}` : ""}
               </Text>
             </View>
@@ -818,6 +821,20 @@ export default function DetailScreen() {
           </View>
         )}
 
+        <TouchableOpacity
+          style={styles.partageBtn}
+          onPress={() =>
+            partager(
+              `${signalement.produitNom} : ${signalement.prix.toLocaleString("fr-FR")} FCFA/${LABELS_UNITE[signalement.unite] ?? signalement.unite}` +
+                (signalement.nomLieu ? ` chez ${signalement.nomLieu}` : "") +
+                ` (${signalement.commune}).`
+            )
+          }
+        >
+          <Icone nom="logo-whatsapp" taille={18} couleur={VERT} />
+          <Text style={styles.partageText}>Partager ce prix</Text>
+        </TouchableOpacity>
+
         {!estLeMien && (
           <TouchableOpacity onPress={demanderMotifAbus} style={styles.abusBtn}>
             <Text style={styles.abusText}>Signaler un contenu abusif</Text>
@@ -843,6 +860,19 @@ const styles = StyleSheet.create({
   statutText: { fontSize: 12, fontWeight: "700" },
   mienBox: { backgroundColor: "#FFFFFF", borderRadius: 12, padding: 14 },
   mienText: { fontSize: 13, color: "#666666", lineHeight: 18 },
+  partageBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: "#DDE5DF",
+    marginTop: 4,
+  },
+  partageText: { fontSize: 14, fontWeight: "700", color: VERT },
   abusBtn: { alignItems: "center", paddingVertical: 12 },
   abusText: { fontSize: 12, color: "#999999", textDecorationLine: "underline" },
   loadingContainer: {

@@ -19,7 +19,10 @@ export type UniteAlimentation =
   | "botte"
   | "sac_25kg"
   | "sac_50kg"
-  | "boite";
+  | "boite"
+  | "paquet"
+  | "bouteille"
+  | "sac";
 
 export type UniteTransport = "trajet";
 
@@ -34,6 +37,8 @@ export type SousCategorie =
   | "fruits"
   | "cereales_legumineuses"
   | "huiles_condiments"
+  | "epicerie"
+  | "energie"
   | "transport_gbaka"
   | "transport_woro"
   | "transport_taxi";
@@ -46,7 +51,6 @@ export interface ProduitRef {
   sousCategorie: SousCategorie;
   uniteDefaut: Unite;
   unitesDisponibles: Unite[];
-  prixReference?: number; // prix OCPV de référence en FCFA
 }
 
 // ─── Signalement utilisateur ───────────────────────────────
@@ -63,6 +67,14 @@ export interface Signalement {
   quartier: string;
   typeLieu: TypeLieu;
   nomLieu: string;       // ex: "Marché Siporex", "Sococé Yopougon"
+  /** Transport uniquement : le tarif dépend du moment du trajet */
+  moment: MomentTrajet;
+  /**
+   * Nombre d'observations concordantes : l'auteur, les confirmations,
+   * et les autres citoyens ayant signalé un prix proche au même endroit.
+   * Calculé par la base locale, absent d'un signalement en cours de création.
+   */
+  appuis?: number;
   latitude?: number;
   longitude?: number;
   dateSignalement: string; // ISO 8601
@@ -137,18 +149,54 @@ export function infoTypeLieu(type: string) {
   return TYPES_LIEU.find((t) => t.id === type) ?? TYPES_LIEU[TYPES_LIEU.length - 1];
 }
 
-// ─── Communes d'Abidjan ────────────────────────────────────
+// ─── Moment d'un trajet ────────────────────────────────────
+export type MomentTrajet = "normal" | "pointe" | "nuit" | "pluie";
+
+export const MOMENTS_TRAJET: { id: MomentTrajet; label: string; icone: NomIcone }[] = [
+  { id: "normal", label: "Heure normale",   icone: "sunny-outline" },
+  { id: "pointe", label: "Heure de pointe", icone: "time-outline" },
+  { id: "nuit",   label: "Nuit",            icone: "moon-outline" },
+  { id: "pluie",  label: "Sous la pluie",   icone: "rainy-outline" },
+];
+
+export function infoMoment(moment: string) {
+  return MOMENTS_TRAJET.find((m) => m.id === moment) ?? MOMENTS_TRAJET[0];
+}
+
+// ─── Zones couvertes ───────────────────────────────────────
+// Une « zone » est une commune du Grand Abidjan ou une ville de l'intérieur.
+// C'est elle qui est enregistrée dans la colonne « commune » d'un signalement.
 export const COMMUNES_ABIDJAN = [
   "Abobo",
   "Adjamé",
+  "Anyama",
   "Attécoubé",
+  "Bingerville",
   "Cocody",
   "Koumassi",
   "Marcory",
   "Plateau",
   "Port-Bouët",
+  "Songon",
   "Treichville",
   "Yopougon",
 ] as const;
 
-export type Commune = (typeof COMMUNES_ABIDJAN)[number];
+/** Villes disposant de prix officiels dans le bulletin hebdomadaire. */
+export const VILLES = [
+  "Abidjan",
+  "Bouaké",
+  "Yamoussoukro",
+  "San-Pédro",
+  "Korhogo",
+  "Man",
+] as const;
+
+export type Ville = (typeof VILLES)[number];
+export type Commune = string;
+
+/** Ville de référence d'une zone : « Abidjan » pour toutes ses communes. */
+export function villeDeZone(zone: string): Ville {
+  if ((COMMUNES_ABIDJAN as readonly string[]).includes(zone)) return "Abidjan";
+  return (VILLES as readonly string[]).includes(zone) ? (zone as Ville) : "Abidjan";
+}

@@ -5,14 +5,19 @@
 import { NomIcone } from "@/constants/types";
 
 /**
- * Nombre de confirmations à partir duquel un signalement est « vérifié » :
- * il entre alors dans les moyennes, les comparaisons et les graphiques.
- * En dessous, il reste dans la file « À confirmer » où la communauté vote.
+ * Validation par concordance.
+ * Un prix est « vérifié » quand au moins SEUIL_APPUIS citoyens différents
+ * l'ont observé au même endroit : l'auteur, ceux qui confirment, et ceux qui
+ * signalent de leur côté un prix proche (à ± TOLERANCE_CONCORDANCE).
+ * Une contestation retire un appui.
+ * Seuls les prix vérifiés servent à classer un commerce.
+ * La même règle est écrite en SQL dans services/db.ts (vue signalements_v).
  */
-export const SEUIL_CONFIRMATIONS = 10;
+export const SEUIL_APPUIS = 3;
+export const TOLERANCE_CONCORDANCE = 0.1;
 
-export function estVerifie(nbConfirmations: number): boolean {
-  return nbConfirmations >= SEUIL_CONFIRMATIONS;
+export function estVerifie(appuis: number | undefined): boolean {
+  return (appuis ?? 1) >= SEUIL_APPUIS;
 }
 
 /**

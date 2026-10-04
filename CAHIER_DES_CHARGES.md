@@ -1,6 +1,6 @@
 # PrixCI — Cahier des charges
 
-Version 1.1 — 4 octobre 2026. Reconstruit à partir du code, puis mis à jour après la réalisation des lots 0 à 4.
+Version 1.2 — 4 octobre 2026. Recentré sur le classement des commerces au prix officiel. Le détail à jour des règles est dans `CONTEXTE.md` et l'avancement dans `ROADMAP.md` ; les tableaux ci-dessous décrivent l'état avant ce recentrage pour les lignes non modifiées.
 
 Légende des statuts : **Fait** = présent dans le code · **Partiel** = présent mais incomplet ou bogué · **À faire** = absent du code.
 Les statuts décrivent le code lu, pas un test sur téléphone.
@@ -13,16 +13,17 @@ Les statuts décrivent le code lu, pas un test sur téléphone.
 À Abidjan, le prix d'un même produit varie fortement d'un point de vente à l'autre, et les tarifs de transport informel changent sans annonce. Les habitants n'ont aucun moyen simple de savoir où acheter au juste prix ni de signaler un abus.
 
 ### 1.2 Solution
-Une application mobile où chacun signale les prix qu'il observe, où la communauté les confirme ou les conteste, et où les commerces peuvent publier leurs prix officiels. La visibilité publique des prix crée une pression naturelle sur les prix abusifs.
+PrixCI conduit les citoyens vers les commerces qui vendent au prix fixé ou publié par l'État. Les citoyens signalent les prix qu'ils constatent ; dès que trois d'entre eux concordent, le prix est vérifié et comparé au prix officiel. Chaque commerce est alors classé « au prix officiel » ou « en dépassement ». Le signalement est un moyen, la carte des commerces conformes est le but.
 
 ### 1.3 Objectifs
-1. Permettre de signaler un prix en moins de 30 secondes, anonymement.
-2. Permettre de comparer le prix d'un produit entre points de vente d'une même commune.
-3. Garantir la fiabilité des données par la validation communautaire.
-4. Fonctionner sans connexion, avec synchronisation dès que le réseau revient.
+1. Montrer, dès l'ouverture, les prix officiels de la ville de l'utilisateur.
+2. Indiquer les commerces qui les respectent, et permettre de s'y rendre.
+3. Permettre de signaler un prix en moins de 30 secondes, anonymement, même sans réseau.
+4. Garantir la fiabilité par la concordance de plusieurs citoyens.
+5. Priorités : denrées alimentaires, puis transport, puis logement.
 
 ### 1.4 Périmètre de la V1
-- Zone : les 10 communes d'Abidjan (Abobo, Adjamé, Attécoubé, Cocody, Koumassi, Marcory, Plateau, Port-Bouët, Treichville, Yopougon).
+- Zone : les 13 communes du Grand Abidjan et 5 villes de l'intérieur (Bouaké, Yamoussoukro, San-Pédro, Korhogo, Man).
 - Domaines : alimentation et transport.
 - Plateformes : Android et iOS (téléphone uniquement, mode portrait).
 - Langue : français. Monnaie : FCFA.

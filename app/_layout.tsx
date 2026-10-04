@@ -5,7 +5,7 @@ import { StatusBar } from "expo-status-bar";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getOrCreateAnonymousUser } from "@/services/auth";
 import { getDb, purgerDonneesDemo } from "@/services/db";
-import { syncAvecStore } from "@/services/sync";
+import { syncAvecStore, initialiserReferences } from "@/services/sync";
 import { getUserValidations } from "@/services/db";
 import { useAppStore } from "@/stores/useAppStore";
 import Onboarding from "@/components/Onboarding";
@@ -25,6 +25,7 @@ export default function RootLayout() {
         // Initialiser la base de données locale
         await getDb();
         await purgerDonneesDemo();
+        await initialiserReferences();
 
         // Créer ou récupérer l'utilisateur anonyme
         const user = await getOrCreateAnonymousUser();
@@ -81,6 +82,7 @@ export default function RootLayout() {
         <Stack.Screen name="enseigne/[id]" options={{ animation: "slide_from_right" }} />
         <Stack.Screen name="enseigne/inscription" options={{ animation: "slide_from_right" }} />
         <Stack.Screen name="legal" options={{ animation: "slide_from_right" }} />
+        <Stack.Screen name="commerce" options={{ animation: "slide_from_right" }} />
       </Stack>
     </>
   );

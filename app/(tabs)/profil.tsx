@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { useAppStore } from "@/stores/useAppStore";
-import { labelScoreUser, estVerifie, SEUIL_CONFIRMATIONS } from "@/services/scoring";
+import { labelScoreUser, estVerifie, SEUIL_APPUIS } from "@/services/scoring";
 import { getMesSignalements, getUser } from "@/services/db";
 import { getMesEnseignes, infoTypeEnseigne, Enseigne } from "@/services/enseignes";
 import { LABELS_UNITE } from "@/constants/produits";
@@ -16,14 +16,14 @@ import { Signalement, NomIcone } from "@/constants/types";
 import Icone from "@/components/Icone";
 
 function statutSignalement(s: Signalement): { label: string; icone: NomIcone; couleur: string } {
-  if (estVerifie(s.nbConfirmations)) {
+  if (estVerifie(s.appuis)) {
     return { label: "Vérifié", icone: "checkmark-circle", couleur: "#0A5F38" };
   }
   if (!s.synced) {
     return { label: "En attente de réseau", icone: "hourglass-outline", couleur: "#888888" };
   }
   return {
-    label: `${s.nbConfirmations} / ${SEUIL_CONFIRMATIONS} confirmations`,
+    label: `Constaté par ${s.appuis ?? 1} citoyen${(s.appuis ?? 1) > 1 ? "s" : ""} sur ${SEUIL_APPUIS}`,
     icone: "people-outline",
     couleur: "#8A5200",
   };

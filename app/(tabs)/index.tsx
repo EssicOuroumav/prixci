@@ -11,86 +11,106 @@ import {
 } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { useAppStore } from "@/stores/useAppStore";
-import { getPrixAgreges } from "@/services/db";
+import { getPrixAgreges, PrixAgregeLocal } from "@/services/db";
 import { syncAvecStore } from "@/services/sync";
-import { COMMUNES_ABIDJAN, Unite, NomIcone } from "@/constants/types";
+import { getCommerces, Commerce } from "@/services/commerces";
+import {
+  referencesDeZone,
+  comparerAuPrixOfficiel,
+  libelleReference,
+  PrixReference,
+} from "@/services/reference";
+import { SEUIL_APPUIS } from "@/services/scoring";
+import { infoTypeLieu, villeDeZone, NomIcone } from "@/constants/types";
 import { LABELS_UNITE, getProduitById } from "@/constants/produits";
-import { SEUIL_CONFIRMATIONS } from "@/services/scoring";
 import Icone from "@/components/Icone";
 import SelecteurCategorie from "@/components/SelecteurCategorie";
+import SelecteurZone from "@/components/SelecteurZone";
 
-// ─── Composant carte prix ──────────────────────────────────
-function PrixCard({
-  produitId,
-  produitNom,
-  prixMoyen,
-  prixMin,
-  prixMax,
-  unite,
-  nbSignalements,
-  derniereMAJ,
-}: {
-  produitId: string;
-  produitNom: string;
-  prixMoyen: number;
-  prixMin: number;
-  prixMax: number;
-  unite: string;
-  nbSignalements: number;
-  derniereMAJ: string;
-}) {
-  const ecart = prixMax - prixMin;
-  const alerteEcart = ecart > prixMoyen * 0.3; // alerte si écart > 30%
+// ============================================================
+// ACCUEIL
+// Alimentation : les commerces qui vendent au prix officiel, puis les prix
+// officiels de la semaine. Transport : les tarifs constatés et vérifiés.
+// ============================================================
 
-  // Comparaison au prix de référence OCPV, seulement dans la même unité
-  const ref = getProduitById(produitId);
-  const ecartRef =
-    ref?.prixReference && ref.uniteDefaut === unite
-      ? Math.round(((prixMoyen - ref.prixReference) / ref.prixReference) * 100)
-      : null;
+const VERT = "#0A5F38";
+const ROUGE = "#C0392B";
+const ORANGE = "#D4820A";
 
-  const dateRelative = () => {
-    const diff = Date.now() - new Date(derniereMAJ).getTime();
-    const heures = Math.floor(diff / 3600000);
-    if (heures < 1) return "Il y a moins d'1h";
-    if (heures < 24) return `Il y a ${heures}h`;
-    const jours = Math.floor(heures / 24);
-    return `Il y a ${jours}j`;
-  };
+function dateCourte(iso: string): string {
+  return new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
+}
+
+// ─── Carte d'un commerce ──────────────────────────────────
+function CarteCommerce({ commerce, onPress }: { commerce: Commerce; onPress: () => void }) {
+  const conforme = commerce.statut === "conforme";
+  const depassement = commerce.statut === "depassement";
+  const couleur = conforme ? VERT : depassement ? ROUGE : "#888888";
+  const nbVerifies = commerce.prix.length;
 
   return (
-    <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <Text style={styles.cardNom} numberOfLines={1}>
-          {produitNom}
+    <TouchableOpacity style={styles.commerce} onPress={onPress} activeOpacity={0.75}>
+      <View style={[styles.commerceIcone, { backgroundColor: couleur + "14" }]}>
+        <Icone nom={infoTypeLieu(commerce.typeLieu).icone} taille={24} couleur={couleur} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.commerceNom} numberOfLines={1}>{commerce.nomLieu}</Text>
+        <Text style={styles.commerceSub} numberOfLines={1}>
+          {infoTypeLieu(commerce.typeLieu).label}
+          {commerce.quartier ? ` · ${commerce.quartier}` : ""}
         </Text>
-        {alerteEcart && (
-          <View style={styles.alerteBadge}>
-            <Icone nom="warning-outline" taille={12} couleur="#D4820A" />
-            <Text style={styles.alerteText}>Écart</Text>
-          </View>
+        <View style={styles.statutRow}>
+          <Icone
+            nom={conforme ? "shield-checkmark" : depassement ? "alert-circle" : "ellipse-outline"}
+            taille={13}
+            couleur={couleur}
+          />
+          <Text style={[styles.statutTexte, { color: couleur }]}>
+            {conforme
+              ? `Au prix officiel · ${commerce.nbConformes} produit${commerce.nbConformes > 1 ? "s" : ""} vérifié${commerce.nbConformes > 1 ? "s" : ""}`
+              : depassement
+              ? `${commerce.nbDepassements} dépassement${commerce.nbDepassements > 1 ? "s" : ""} sur ${nbVerifies} produit${nbVerifies > 1 ? "s" : ""}`
+              : `${nbVerifies} prix vérifié${nbVerifies > 1 ? "s" : ""}, sans prix officiel`}
+          </Text>
+        </View>
+      </View>
+      <Icone nom="chevron-forward" taille={18} couleur="#CCCCCC" />
+    </TouchableOpacity>
+  );
+}
+
+// ─── Ligne d'un prix officiel ─────────────────────────────
+function LignePrixOfficiel({
+  reference,
+  constate,
+}: {
+  reference: PrixReference;
+  constate: PrixAgregeLocal | undefined;
+}) {
+  const nom = getProduitById(reference.produitId)?.nom ?? reference.produitId;
+  const moyenne = constate?.prixMoyen ?? null;
+  const comparaison = moyenne !== null ? comparerAuPrixOfficiel(moyenne, reference) : null;
+
+  return (
+    <View style={styles.ligne}>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.ligneNom} numberOfLines={1}>{nom}</Text>
+        {comparaison && (
+          <Text
+            style={[
+              styles.ligneConstate,
+              { color: comparaison.statut === "depassement" ? ROUGE : VERT },
+            ]}
+          >
+            Constaté : {moyenne!.toLocaleString("fr-FR")} FCFA
+            {comparaison.ecartPct !== null && comparaison.ecartPct !== 0
+              ? ` (${comparaison.ecartPct > 0 ? "+" : ""}${comparaison.ecartPct} %)`
+              : ""}
+          </Text>
         )}
       </View>
-      <View style={styles.cardPrix}>
-        <Text style={styles.prixMoyen}>
-          {prixMoyen.toLocaleString("fr-FR")} FCFA
-        </Text>
-        <Text style={styles.prixUnite}>/ {LABELS_UNITE[unite] ?? unite}</Text>
-      </View>
-      {ecartRef !== null && Math.abs(ecartRef) >= 10 && (
-        <Text style={[styles.refText, { color: ecartRef > 0 ? "#C0392B" : VERT }]}>
-          {ecartRef > 0 ? "↑" : "↓"} {Math.abs(ecartRef)}% par rapport au prix de référence
-          ({ref!.prixReference!.toLocaleString("fr-FR")} FCFA)
-        </Text>
-      )}
-      <View style={styles.cardFooter}>
-        <Text style={styles.cardMeta}>
-          {prixMin.toLocaleString("fr-FR")} – {prixMax.toLocaleString("fr-FR")} FCFA
-        </Text>
-        <Text style={styles.cardMeta}>
-          {nbSignalements} signal. · {dateRelative()}
-        </Text>
-      </View>
+      <Text style={styles.lignePrix}>{reference.prix.toLocaleString("fr-FR")} F</Text>
+      <Text style={styles.ligneUnite}>/{LABELS_UNITE[reference.unite] ?? reference.unite}</Text>
     </View>
   );
 }
@@ -101,8 +121,6 @@ export default function HomeScreen() {
   const {
     communeSelectionnee,
     setCommuneSelectionnee,
-    prixAgreges,
-    setPrixAgreges,
     syncStatus,
     isInitialized,
     categorieActive,
@@ -110,16 +128,25 @@ export default function HomeScreen() {
 
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [commerces, setCommerces] = useState<Commerce[]>([]);
+  const [prixConstates, setPrixConstates] = useState<PrixAgregeLocal[]>([]);
+  const [references, setReferences] = useState<PrixReference[]>([]);
 
   const chargerDonnees = useCallback(async () => {
     try {
-      const data = await getPrixAgreges(communeSelectionnee);
-      setPrixAgreges(
-        data.map((d) => ({
-          ...d,
-          commune: communeSelectionnee,
-          unite: d.unite as Unite,
-        }))
+      const [listeCommerces, agreges] = await Promise.all([
+        getCommerces(communeSelectionnee),
+        getPrixAgreges(communeSelectionnee),
+      ]);
+      setCommerces(listeCommerces);
+      setPrixConstates(agreges);
+      setReferences(
+        referencesDeZone(communeSelectionnee).sort((a, b) =>
+          (getProduitById(a.produitId)?.nom ?? "").localeCompare(
+            getProduitById(b.produitId)?.nom ?? "",
+            "fr"
+          )
+        )
       );
     } finally {
       setLoading(false);
@@ -145,12 +172,21 @@ export default function HomeScreen() {
     await chargerDonnees();
   }, [chargerDonnees]);
 
-  // Seuls les prix vérifiés par la communauté sont affichés ici
-  // Alimentation et transport ne sont jamais mélangés : on n'affiche que l'univers choisi
-  const prixCategorie = prixAgreges.filter((p) => p.categorie === categorieActive);
-  const prixVerifies = prixCategorie.filter((p) => p.prixMoyen !== null);
-  const nbEnAttente = prixCategorie.reduce((n, p) => n + p.nbEnAttente, 0);
   const estTransport = categorieActive === "transport";
+  const ville = villeDeZone(communeSelectionnee);
+
+  // Alimentation et transport ne sont jamais mélangés
+  const constatesCategorie = prixConstates.filter((p) => p.categorie === categorieActive);
+  const nbEnAttente = constatesCategorie.reduce((n, p) => n + p.nbEnAttente, 0);
+  const tarifsVerifies = constatesCategorie.filter((p) => p.prixMoyen !== null);
+  const constateParCle = new Map(
+    constatesCategorie.map((p) => [`${p.produitId}|${p.unite}`, p])
+  );
+
+  const commercesConformes = commerces.filter((c) => c.statut === "conforme");
+  const autresCommerces = commerces.filter((c) => c.statut !== "conforme");
+  const typeReference = references[0]?.type ?? "moyen";
+  const reference0 = references[0];
 
   const syncIndicator = (): { icone: NomIcone; texte: string } | null => {
     if (syncStatus === "syncing") return { icone: "sync-outline", texte: "Synchronisation…" };
@@ -161,6 +197,9 @@ export default function HomeScreen() {
   };
   const sync = syncIndicator();
 
+  const ouvrirCommerce = (c: Commerce) =>
+    router.push({ pathname: "/commerce", params: { commune: c.commune, cle: c.cle } });
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -169,7 +208,7 @@ export default function HomeScreen() {
           <Image source={require("../../assets/logo-mark.png")} style={styles.logo} />
           <View>
             <Text style={styles.headerTitle}>PrixCI</Text>
-            <Text style={styles.headerSub}>La transparence des prix à Abidjan</Text>
+            <Text style={styles.headerSub}>Les commerces au prix officiel</Text>
           </View>
         </View>
         {sync && (
@@ -180,236 +219,247 @@ export default function HomeScreen() {
         )}
       </View>
 
+      <SelecteurZone zone={communeSelectionnee} onChange={setCommuneSelectionnee} />
       <SelecteurCategorie />
 
-      {/* Sélecteur de commune */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.communeScroll}
-        contentContainerStyle={styles.communeScrollContent}
-      >
-        {COMMUNES_ABIDJAN.map((commune) => (
-          <TouchableOpacity
-            key={commune}
-            style={[
-              styles.communeChip,
-              communeSelectionnee === commune && styles.communeChipActive,
-            ]}
-            onPress={() => setCommuneSelectionnee(commune)}
-          >
-            <Text
-              style={[
-                styles.communeChipText,
-                communeSelectionnee === commune && styles.communeChipTextActive,
-              ]}
-            >
-              {commune}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      {/* Contenu */}
       {loading ? (
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#0A5F38" />
-          <Text style={styles.loadingText}>Chargement des prix…</Text>
+          <ActivityIndicator size="large" color={VERT} />
         </View>
       ) : (
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
           refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={["#0A5F38"]}
-              tintColor="#0A5F38"
-            />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[VERT]} tintColor={VERT} />
           }
         >
           {nbEnAttente > 0 && (
-            <TouchableOpacity
-              style={styles.attenteBanner}
-              onPress={() => router.push("/(tabs)/explorer")}
-            >
+            <TouchableOpacity style={styles.attenteBanner} onPress={() => router.push("/(tabs)/explorer")}>
               <Text style={styles.attenteTitle}>
-                {nbEnAttente} {estTransport ? "tarif" : "prix"}{estTransport && nbEnAttente > 1 ? "s" : ""} à confirmer à {communeSelectionnee}
+                {nbEnAttente} signalement{nbEnAttente > 1 ? "s" : ""} à confirmer à {communeSelectionnee}
               </Text>
               <Text style={styles.attenteSub}>
-                Un prix devient public après {SEUIL_CONFIRMATIONS} confirmations. Vote dans Explorer →
+                Un prix est vérifié quand {SEUIL_APPUIS} citoyens l'ont constaté. Confirme dans Explorer →
               </Text>
             </TouchableOpacity>
           )}
 
-          {prixVerifies.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Icone
-                nom={estTransport ? "bus-outline" : "basket-outline"}
-                taille={48}
-                couleur="#B8C4BC"
-              />
-              <Text style={styles.emptyTitle}>
-                {estTransport
-                  ? `Aucun tarif de transport vérifié à ${communeSelectionnee}`
-                  : `Aucun prix alimentaire vérifié à ${communeSelectionnee}`}
-              </Text>
-              <Text style={styles.emptySubtitle}>
-                {nbEnAttente > 0
-                  ? "Des signalements attendent ta confirmation dans Explorer."
-                  : estTransport
-                  ? "Sois le premier à signaler le tarif d'un trajet dans cette commune."
-                  : "Sois le premier à signaler un prix dans cette commune."}
-              </Text>
-              <TouchableOpacity
-                style={styles.ctaButton}
-                onPress={() => router.push("/(tabs)/signaler")}
-              >
-                <Text style={styles.ctaButtonText}>Signaler un prix</Text>
-              </TouchableOpacity>
-            </View>
+          {estTransport ? (
+            <>
+              <Text style={styles.sectionTitre}>Tarifs vérifiés à {communeSelectionnee}</Text>
+              {tarifsVerifies.length === 0 ? (
+                <View style={styles.videBox}>
+                  <Icone nom="bus-outline" taille={40} couleur="#B8C4BC" />
+                  <Text style={styles.videTitre}>Aucun tarif vérifié pour l'instant</Text>
+                  <Text style={styles.videTexte}>
+                    Signale le tarif d'un trajet : il est vérifié dès que {SEUIL_APPUIS} citoyens constatent le même.
+                  </Text>
+                </View>
+              ) : (
+                tarifsVerifies.map((t) => (
+                  <View key={`${t.produitId}-${t.unite}`} style={styles.ligne}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.ligneNom} numberOfLines={1}>{t.produitNom}</Text>
+                      {t.prixMin !== t.prixMax && (
+                        <Text style={styles.ligneSousTexte}>
+                          de {t.prixMin!.toLocaleString("fr-FR")} à {t.prixMax!.toLocaleString("fr-FR")} FCFA
+                        </Text>
+                      )}
+                    </View>
+                    <Text style={styles.lignePrix}>{t.prixMoyen!.toLocaleString("fr-FR")} F</Text>
+                    <Text style={styles.ligneUnite}>/trajet</Text>
+                  </View>
+                ))
+              )}
+              <View style={styles.noteBox}>
+                <Text style={styles.noteTexte}>
+                  Aucun tarif officiel de transport n'est encore intégré à PrixCI. Les tarifs affichés sont ceux constatés par les citoyens.
+                </Text>
+              </View>
+            </>
           ) : (
             <>
-              <Text style={styles.sectionTitle}>
-                {prixVerifies.length} {estTransport ? "trajet" : "produit"}{prixVerifies.length > 1 ? "s" : ""} vérifié{prixVerifies.length > 1 ? "s" : ""} à {communeSelectionnee}
+              {/* ── Commerces au prix officiel ─────────────── */}
+              <Text style={styles.sectionTitre}>
+                Commerces au prix officiel à {communeSelectionnee}
               </Text>
-              {prixVerifies.map((prix) => (
-                <PrixCard
-                  key={`${prix.produitId}-${prix.unite}`}
-                  produitId={prix.produitId}
-                  produitNom={prix.produitNom}
-                  prixMoyen={prix.prixMoyen ?? 0}
-                  prixMin={prix.prixMin ?? 0}
-                  prixMax={prix.prixMax ?? 0}
-                  unite={prix.unite}
-                  nbSignalements={prix.nbSignalements}
-                  derniereMAJ={prix.derniereMAJ}
-                />
-              ))}
-              <View style={styles.bottomPadding} />
+              {commercesConformes.length === 0 ? (
+                <View style={styles.videBox}>
+                  <Icone nom="storefront-outline" taille={40} couleur="#B8C4BC" />
+                  <Text style={styles.videTitre}>Aucun commerce vérifié pour l'instant</Text>
+                  <Text style={styles.videTexte}>
+                    Un commerce apparaît ici quand {SEUIL_APPUIS} citoyens constatent qu'il vend au prix officiel. Signale les prix du commerce où tu achètes.
+                  </Text>
+                  <TouchableOpacity style={styles.cta} onPress={() => router.push("/(tabs)/signaler")}>
+                    <Text style={styles.ctaTexte}>Signaler un prix</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                commercesConformes.map((c) => (
+                  <CarteCommerce key={c.cle} commerce={c} onPress={() => ouvrirCommerce(c)} />
+                ))
+              )}
+
+              {autresCommerces.length > 0 && (
+                <>
+                  <Text style={styles.sectionTitre}>Autres commerces évalués</Text>
+                  {autresCommerces.map((c) => (
+                    <CarteCommerce key={c.cle} commerce={c} onPress={() => ouvrirCommerce(c)} />
+                  ))}
+                </>
+              )}
+
+              {/* ── Prix officiels ─────────────────────────── */}
+              <Text style={styles.sectionTitre}>Prix officiels · {ville}</Text>
+              {references.length === 0 ? (
+                <View style={styles.noteBox}>
+                  <Text style={styles.noteTexte}>Aucun prix officiel disponible pour {ville}.</Text>
+                </View>
+              ) : (
+                <>
+                  <View style={styles.sourceBox}>
+                    <Icone nom="information-circle-outline" taille={15} couleur="#555555" />
+                    <Text style={styles.sourceTexte}>
+                      {libelleReference(typeReference)}
+                      {reference0?.dateFin
+                        ? ` · semaine du ${dateCourte(reference0.dateDebut)} au ${dateCourte(reference0.dateFin)}`
+                        : ""}
+                      {"\n"}Source : {reference0?.source}
+                    </Text>
+                  </View>
+                  {references.map((r) => (
+                    <LignePrixOfficiel
+                      key={`${r.produitId}|${r.unite}`}
+                      reference={r}
+                      constate={constateParCle.get(`${r.produitId}|${r.unite}`)}
+                    />
+                  ))}
+                </>
+              )}
             </>
           )}
+          <View style={{ height: 90 }} />
         </ScrollView>
       )}
 
-      {/* FAB Signaler */}
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => router.push("/(tabs)/signaler")}
-      >
-        <Text style={styles.fabText}>+ Signaler</Text>
+      {/* Bouton Signaler */}
+      <TouchableOpacity style={styles.fab} onPress={() => router.push("/(tabs)/signaler")}>
+        <Icone nom="add" taille={20} couleur="#FFFFFF" />
+        <Text style={styles.fabText}>Signaler</Text>
       </TouchableOpacity>
     </View>
   );
 }
 
-const VERT = "#0A5F38";
-const VERT_CLAIR = "#E8F5EE";
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F5F7F5" },
-  refText: { fontSize: 12, fontWeight: "600", marginTop: 4 },
-  attenteBanner: {
-    backgroundColor: "#FFF8E6",
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: "#D4820A",
-  },
-  attenteTitle: { fontSize: 14, fontWeight: "700", color: "#8A5200" },
-  attenteSub: { fontSize: 12, color: "#8A5200", marginTop: 2, lineHeight: 16 },
   header: {
     backgroundColor: VERT,
     paddingTop: 56,
-    paddingBottom: 16,
+    paddingBottom: 14,
     paddingHorizontal: 20,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-end",
   },
-  headerTitle: { fontSize: 26, fontWeight: "800", color: "#FFFFFF" },
-  headerSub: { fontSize: 12, color: "rgba(255,255,255,0.75)", marginTop: 2 },
-  syncIndicator: { fontSize: 11, color: "rgba(255,255,255,0.85)" },
-  syncRow: { flexDirection: "row", alignItems: "center", gap: 4 },
   headerMarque: { flexDirection: "row", alignItems: "center", gap: 10 },
   logo: { width: 40, height: 40, borderRadius: 10, backgroundColor: "#FFFFFF" },
-  communeScroll: { maxHeight: 50, backgroundColor: "#FFFFFF" },
-  communeScrollContent: { paddingHorizontal: 16, paddingVertical: 10, gap: 8 },
-  communeChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 20,
-    backgroundColor: "#F0F0F0",
-  },
-  communeChipActive: { backgroundColor: VERT },
-  communeChipText: { fontSize: 13, color: "#555555", fontWeight: "500" },
-  communeChipTextActive: { color: "#FFFFFF", fontWeight: "700" },
+  headerTitle: { fontSize: 24, fontWeight: "800", color: "#FFFFFF" },
+  headerSub: { fontSize: 12, color: "rgba(255,255,255,0.8)", marginTop: 1 },
+  syncRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+  syncIndicator: { fontSize: 11, color: "rgba(255,255,255,0.85)" },
+  centered: { flex: 1, justifyContent: "center", alignItems: "center" },
   scroll: { flex: 1 },
-  scrollContent: { padding: 16 },
-  sectionTitle: {
-    fontSize: 13,
-    color: "#888888",
-    marginBottom: 12,
-    fontWeight: "500",
-  },
-  card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    padding: 14,
+  scrollContent: { padding: 14 },
+  sectionTitre: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#1A1A1A",
+    marginTop: 12,
     marginBottom: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
   },
-  cardHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 6,
+  attenteBanner: {
+    backgroundColor: "#FFF8E6",
+    borderRadius: 12,
+    padding: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: ORANGE,
   },
-  cardNom: { fontSize: 15, fontWeight: "700", color: "#1A1A1A", flex: 1 },
-  alerteBadge: {
+  attenteTitle: { fontSize: 14, fontWeight: "700", color: "#8A5200" },
+  attenteSub: { fontSize: 12, color: "#8A5200", marginTop: 2, lineHeight: 16 },
+  commerce: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 3,
-    backgroundColor: "#FFF3CD",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
+    gap: 12,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 8,
   },
-  alerteText: { fontSize: 11, color: "#856404", fontWeight: "600" },
-  cardPrix: { flexDirection: "row", alignItems: "baseline", marginBottom: 6 },
-  prixMoyen: { fontSize: 22, fontWeight: "800", color: VERT },
-  prixUnite: { fontSize: 13, color: "#888888", marginLeft: 4 },
-  cardFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+  commerceIcone: {
+    width: 46,
+    height: 46,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  cardMeta: { fontSize: 11, color: "#AAAAAA" },
-  centered: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12 },
-  loadingText: { color: "#888888", fontSize: 14 },
-  emptyState: { alignItems: "center", paddingTop: 60, gap: 8 },
-  emptyTitle: { fontSize: 16, fontWeight: "700", color: "#333333", textAlign: "center" },
-  emptySubtitle: { fontSize: 13, color: "#888888", textAlign: "center", paddingHorizontal: 20 },
-  ctaButton: {
-    marginTop: 16,
+  commerceNom: { fontSize: 15, fontWeight: "700", color: "#1A1A1A" },
+  commerceSub: { fontSize: 12, color: "#888888", marginTop: 1 },
+  statutRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 5 },
+  statutTexte: { fontSize: 12, fontWeight: "700", flex: 1 },
+  videBox: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    padding: 22,
+    alignItems: "center",
+    gap: 8,
+  },
+  videTitre: { fontSize: 15, fontWeight: "700", color: "#333333", textAlign: "center" },
+  videTexte: { fontSize: 13, color: "#777777", textAlign: "center", lineHeight: 19 },
+  cta: {
+    marginTop: 6,
     backgroundColor: VERT,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 24,
+    borderRadius: 22,
+    paddingHorizontal: 22,
+    paddingVertical: 10,
   },
-  ctaButtonText: { color: "#FFFFFF", fontWeight: "700", fontSize: 15 },
+  ctaTexte: { color: "#FFFFFF", fontWeight: "700", fontSize: 14 },
+  sourceBox: {
+    flexDirection: "row",
+    gap: 8,
+    backgroundColor: "#EEF1EE",
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 8,
+  },
+  sourceTexte: { fontSize: 11, color: "#555555", lineHeight: 16, flex: 1 },
+  ligne: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    marginBottom: 5,
+  },
+  ligneNom: { fontSize: 14, fontWeight: "600", color: "#1A1A1A" },
+  ligneConstate: { fontSize: 11, fontWeight: "600", marginTop: 2 },
+  ligneSousTexte: { fontSize: 11, color: "#888888", marginTop: 2 },
+  lignePrix: { fontSize: 16, fontWeight: "800", color: VERT },
+  ligneUnite: { fontSize: 12, color: "#888888", marginLeft: 2 },
+  noteBox: { backgroundColor: "#EEF1EE", borderRadius: 10, padding: 12, marginTop: 8 },
+  noteTexte: { fontSize: 12, color: "#666666", lineHeight: 17 },
   fab: {
     position: "absolute",
-    bottom: 90,
+    bottom: 20,
     right: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
     backgroundColor: VERT,
     paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingVertical: 13,
     borderRadius: 28,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
@@ -418,5 +468,4 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   fabText: { color: "#FFFFFF", fontWeight: "800", fontSize: 15 },
-  bottomPadding: { height: 80 },
 });

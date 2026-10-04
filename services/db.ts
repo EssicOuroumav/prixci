@@ -1,6 +1,7 @@
 import * as SQLite from "expo-sqlite";
 import { Signalement, Validation, UserProfile } from "@/constants/types";
-import { SEUIL_CONFIRMATIONS, SEUILS, DELTA_FIABILITE } from "./scoring";
+import { SEUIL_APPUIS, TOLERANCE_CONCORDANCE, SEUILS, DELTA_FIABILITE } from "./scoring";
+import type { PrixReference } from "./reference";
 
 // ============================================================
 // SERVICE BASE DE DONNÉES LOCALE — SQLite (expo-sqlite v14)
@@ -71,6 +72,55 @@ async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
       ON signalements(synced);
     CREATE INDEX IF NOT EXISTS idx_validations_signalement
       ON validations(signalement_id);
+
+    CREATE TABLE IF NOT EXISTS prix_reference (
+      type TEXT NOT NULL,
+      produit_id TEXT NOT NULL,
+      unite TEXT NOT NULL,
+      ville TEXT NOT NULL,
+      prix REAL NOT NULL,
+      date_debut TEXT NOT NULL,
+      date_fin TEXT,
+      source TEXT NOT NULL DEFAULT '',
+      PRIMARY KEY (type, produit_id, unite, ville)
+    );
+  `);
+
+  // Colonne ajoutée après la première version : moment du trajet (transport)
+  const colonnes = await db.getAllAsync<{ name: string }>(
+    "PRAGMA table_info(signalements)"
+  );
+  if (!colonnes.some((c) => c.name === "moment")) {
+    await db.execAsync(
+      "ALTER TABLE signalements ADD COLUMN moment TEXT NOT NULL DEFAULT 'normal'"
+    );
+  }
+
+  // Vue de lecture : chaque signalement avec son nombre d'« appuis »
+  // (voir la règle de concordance dans services/scoring.ts).
+  // Recréée à chaque démarrage pour suivre l'évolution de la règle.
+  await db.execAsync(`
+    DROP VIEW IF EXISTS signalements_v;
+    CREATE VIEW signalements_v AS
+    SELECT s.*,
+      1 + s.nb_confirmations - s.nb_contestations + (
+        SELECT COUNT(DISTINCT s2.user_id) FROM signalements s2
+        WHERE s2.produit_id = s.produit_id
+          AND s2.unite = s.unite
+          AND s2.commune = s.commune
+          AND s2.moment = s.moment
+          AND (
+            s.categorie = 'transport'
+            OR (s2.type_lieu = s.type_lieu
+                AND LOWER(TRIM(s2.nom_lieu)) = LOWER(TRIM(s.nom_lieu)))
+          )
+          AND s2.user_id != s.user_id
+          AND s2.score_fiabilite >= ${SEUILS.AFFICHAGE_PUBLIC}
+          AND s2.date_signalement > strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-30 days')
+          AND s2.prix BETWEEN s.prix * ${1 - TOLERANCE_CONCORDANCE}
+                          AND s.prix * ${1 + TOLERANCE_CONCORDANCE}
+      ) AS appuis
+    FROM signalements s;
   `);
 }
 
@@ -134,14 +184,14 @@ async function insertSignalementBrut(s: Signalement): Promise<void> {
   await db.runAsync(
     `INSERT OR REPLACE INTO signalements
       (id, user_id, produit_id, produit_nom, categorie, sous_categorie,
-       prix, unite, commune, quartier, type_lieu, nom_lieu,
+       prix, unite, commune, quartier, type_lieu, nom_lieu, moment,
        latitude, longitude, date_signalement, score_fiabilite,
        nb_confirmations, nb_contestations, synced, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       s.id, s.userId, s.produitId, s.produitNom, s.categorie,
       s.sousCategorie, s.prix, s.unite, s.commune, s.quartier,
-      s.typeLieu, s.nomLieu,
+      s.typeLieu, s.nomLieu, s.moment ?? "normal",
       s.latitude ?? null, s.longitude ?? null, s.dateSignalement,
       s.scoreFilabilite, s.nbConfirmations, s.nbContestations,
       s.synced ? 1 : 0, s.createdAt,
@@ -156,7 +206,7 @@ export async function getMesSignalements(
 ): Promise<Signalement[]> {
   const db = await getDb();
   const rows = await db.getAllAsync<any>(
-    `SELECT * FROM signalements
+    `SELECT * FROM signalements_v
      WHERE user_id = ?
      ORDER BY date_signalement DESC
      LIMIT ?`,
@@ -171,7 +221,7 @@ export async function getSignalementsByCommune(
 ): Promise<Signalement[]> {
   const db = await getDb();
   const rows = await db.getAllAsync<any>(
-    `SELECT * FROM signalements
+    `SELECT * FROM signalements_v
      WHERE commune = ?
      ORDER BY date_signalement DESC
      LIMIT ?`,
@@ -186,8 +236,8 @@ export async function getSignalementsByProduit(
 ): Promise<Signalement[]> {
   const db = await getDb();
   const query = commune
-    ? `SELECT * FROM signalements WHERE produit_id = ? AND commune = ? ORDER BY date_signalement DESC LIMIT 50`
-    : `SELECT * FROM signalements WHERE produit_id = ? ORDER BY date_signalement DESC LIMIT 50`;
+    ? `SELECT * FROM signalements_v WHERE produit_id = ? AND commune = ? ORDER BY date_signalement DESC LIMIT 50`
+    : `SELECT * FROM signalements_v WHERE produit_id = ? ORDER BY date_signalement DESC LIMIT 50`;
   const params = commune ? [produitId, commune] : [produitId];
   const rows = await db.getAllAsync<any>(query, params);
   return rows.map(rowToSignalement);
@@ -196,7 +246,7 @@ export async function getSignalementsByProduit(
 export async function getUnsyncedSignalements(): Promise<Signalement[]> {
   const db = await getDb();
   const rows = await db.getAllAsync<any>(
-    "SELECT * FROM signalements WHERE synced = 0 ORDER BY created_at ASC"
+    "SELECT * FROM signalements_v WHERE synced = 0 ORDER BY created_at ASC"
   );
   return rows.map(rowToSignalement);
 }
@@ -215,7 +265,7 @@ export async function upsertSignalementsFromServer(
   const db = await getDb();
   for (const s of signalements) {
     const existing = await db.getFirstAsync<any>(
-      "SELECT synced FROM signalements WHERE id = ?",
+      "SELECT synced FROM signalements_v WHERE id = ?",
       [s.id]
     );
     if (!existing) {
@@ -342,21 +392,21 @@ export async function getPrixAgreges(commune: string): Promise<PrixAgregeLocal[]
       produit_nom,
       categorie,
       unite,
-      ROUND(AVG(CASE WHEN nb_confirmations >= ? THEN prix END), 0) as prix_moyen,
-      MIN(CASE WHEN nb_confirmations >= ? THEN prix END) as prix_min,
-      MAX(CASE WHEN nb_confirmations >= ? THEN prix END) as prix_max,
-      SUM(CASE WHEN nb_confirmations >= ? THEN 1 ELSE 0 END) as nb_verifies,
-      SUM(CASE WHEN nb_confirmations < ? THEN 1 ELSE 0 END) as nb_en_attente,
+      ROUND(AVG(CASE WHEN appuis >= ? THEN prix END), 0) as prix_moyen,
+      MIN(CASE WHEN appuis >= ? THEN prix END) as prix_min,
+      MAX(CASE WHEN appuis >= ? THEN prix END) as prix_max,
+      SUM(CASE WHEN appuis >= ? THEN 1 ELSE 0 END) as nb_verifies,
+      SUM(CASE WHEN appuis < ? THEN 1 ELSE 0 END) as nb_en_attente,
       MAX(date_signalement) as derniere_maj
-    FROM signalements
+    FROM signalements_v
     WHERE commune = ?
       AND date_signalement > ?
       AND score_fiabilite >= ?
     GROUP BY produit_id, unite
     ORDER BY nb_verifies DESC, nb_en_attente DESC`,
     [
-      SEUIL_CONFIRMATIONS, SEUIL_CONFIRMATIONS, SEUIL_CONFIRMATIONS,
-      SEUIL_CONFIRMATIONS, SEUIL_CONFIRMATIONS,
+      SEUIL_APPUIS, SEUIL_APPUIS, SEUIL_APPUIS,
+      SEUIL_APPUIS, SEUIL_APPUIS,
       commune, depuis, SEUILS.AFFICHAGE_PUBLIC,
     ]
   );
@@ -409,25 +459,25 @@ export async function getPrixParPointDeVente(
       MAX(s.prix) as prix_max,
       COUNT(*) as nb_signalements,
       MAX(s.date_signalement) as derniere_maj,
-      (SELECT s2.id FROM signalements s2
+      (SELECT s2.id FROM signalements_v s2
        WHERE s2.produit_id = s.produit_id
          AND s2.commune = s.commune
          AND s2.type_lieu = s.type_lieu
          AND s2.nom_lieu = s.nom_lieu
          AND s2.unite = s.unite
-         AND s2.nb_confirmations >= ?
+         AND s2.appuis >= ?
        ORDER BY s2.date_signalement DESC LIMIT 1) as dernier_signalement_id
-    FROM signalements s
+    FROM signalements_v s
     WHERE s.produit_id = ?
       AND s.commune = ?
       AND s.date_signalement > ?
       AND s.score_fiabilite >= ?
-      AND s.nb_confirmations >= ?
+      AND s.appuis >= ?
     GROUP BY s.type_lieu, s.nom_lieu, s.commune, s.unite
     ORDER BY prix_moyen ASC`,
     [
-      SEUIL_CONFIRMATIONS, produitId, commune, depuis,
-      SEUILS.AFFICHAGE_PUBLIC, SEUIL_CONFIRMATIONS,
+      SEUIL_APPUIS, produitId, commune, depuis,
+      SEUILS.AFFICHAGE_PUBLIC, SEUIL_APPUIS,
     ]
   );
   return rows.map((r: any) => ({
@@ -456,15 +506,15 @@ export async function getSignalementsEnAttente(
   const db = await getDb();
   const depuis = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   const rows = await db.getAllAsync<any>(
-    `SELECT * FROM signalements
+    `SELECT * FROM signalements_v
      WHERE produit_id = ?
        AND commune = ?
        AND date_signalement > ?
        AND score_fiabilite >= ?
-       AND nb_confirmations < ?
+       AND appuis < ?
      ORDER BY date_signalement DESC
      LIMIT ?`,
-    [produitId, commune, depuis, SEUILS.AFFICHAGE_PUBLIC, SEUIL_CONFIRMATIONS, limit]
+    [produitId, commune, depuis, SEUILS.AFFICHAGE_PUBLIC, SEUIL_APPUIS, limit]
   );
   return rows.map(rowToSignalement);
 }
@@ -479,11 +529,11 @@ export async function rechercherProduitsSaisis(
   const db = await getDb();
   const query = commune
     ? `SELECT produit_id, produit_nom, COUNT(*) as nb
-       FROM signalements
+       FROM signalements_v
        WHERE produit_nom LIKE ? AND commune = ?
        GROUP BY produit_id ORDER BY nb DESC LIMIT 20`
     : `SELECT produit_id, produit_nom, COUNT(*) as nb
-       FROM signalements
+       FROM signalements_v
        WHERE produit_nom LIKE ?
        GROUP BY produit_id ORDER BY nb DESC LIMIT 20`;
   const params = commune ? [`%${terme}%`, commune] : [`%${terme}%`];
@@ -492,6 +542,133 @@ export async function rechercherProduitsSaisis(
     produitId: r.produit_id,
     produitNom: r.produit_nom,
     nbSignalements: r.nb,
+  }));
+}
+
+// ─── COMMERCES ────────────────────────────────────────────
+
+export interface PrixCommerceLigne {
+  typeLieu: string;
+  nomLieu: string;
+  quartier: string;
+  produitId: string;
+  produitNom: string;
+  unite: string;
+  prix: number;
+  nbSignalements: number;
+  derniereMAJ: string;
+  latitude: number | null;
+  longitude: number | null;
+}
+
+/**
+ * Prix vérifiés de chaque commerce nommé d'une zone, produit par produit.
+ * C'est la matière première du classement des commerces (services/commerces.ts).
+ */
+export async function getPrixParCommerce(commune: string): Promise<PrixCommerceLigne[]> {
+  const db = await getDb();
+  const depuis = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const rows = await db.getAllAsync<any>(
+    `SELECT
+      type_lieu,
+      MIN(TRIM(nom_lieu)) as nom_lieu,
+      MAX(quartier) as quartier,
+      produit_id,
+      produit_nom,
+      unite,
+      ROUND(AVG(prix), 0) as prix,
+      COUNT(*) as nb,
+      MAX(date_signalement) as derniere_maj,
+      AVG(latitude) as latitude,
+      AVG(longitude) as longitude
+    FROM signalements_v
+    WHERE commune = ?
+      AND categorie = 'alimentation'
+      AND TRIM(nom_lieu) != ''
+      AND date_signalement > ?
+      AND score_fiabilite >= ?
+      AND appuis >= ?
+    GROUP BY type_lieu, LOWER(TRIM(nom_lieu)), produit_id, unite`,
+    [commune, depuis, SEUILS.AFFICHAGE_PUBLIC, SEUIL_APPUIS]
+  );
+  return rows.map((r: any) => ({
+    typeLieu: r.type_lieu,
+    nomLieu: r.nom_lieu,
+    quartier: r.quartier ?? "",
+    produitId: r.produit_id,
+    produitNom: r.produit_nom,
+    unite: r.unite,
+    prix: r.prix,
+    nbSignalements: r.nb,
+    derniereMAJ: r.derniere_maj,
+    latitude: r.latitude ?? null,
+    longitude: r.longitude ?? null,
+  }));
+}
+
+/** Commerces déjà cités dans une zone, pour proposer le même nom à la saisie. */
+export async function getLieuxConnus(
+  commune: string
+): Promise<{ typeLieu: string; nomLieu: string }[]> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<any>(
+    `SELECT type_lieu, MIN(TRIM(nom_lieu)) as nom_lieu, COUNT(*) as nb
+     FROM signalements_v
+     WHERE commune = ? AND categorie = 'alimentation' AND TRIM(nom_lieu) != ''
+     GROUP BY type_lieu, LOWER(TRIM(nom_lieu))
+     ORDER BY nb DESC
+     LIMIT 60`,
+    [commune]
+  );
+  return rows.map((r: any) => ({ typeLieu: r.type_lieu, nomLieu: r.nom_lieu }));
+}
+
+/** Un même citoyen ne signale pas deux fois le même prix au même endroit dans la journée. */
+export async function dejaSignaleAujourdhui(
+  userId: string,
+  produitId: string,
+  commune: string,
+  nomLieu: string
+): Promise<boolean> {
+  const db = await getDb();
+  const depuis = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
+  const row = await db.getFirstAsync<any>(
+    `SELECT id FROM signalements_v
+     WHERE user_id = ? AND produit_id = ? AND commune = ?
+       AND LOWER(TRIM(nom_lieu)) = LOWER(TRIM(?))
+       AND date_signalement > ?
+     LIMIT 1`,
+    [userId, produitId, commune, nomLieu, depuis]
+  );
+  return !!row;
+}
+
+// ─── PRIX OFFICIELS (copie locale de la table serveur) ────
+
+export async function saveReferences(refs: PrixReference[]): Promise<void> {
+  const db = await getDb();
+  for (const r of refs) {
+    await db.runAsync(
+      `INSERT OR REPLACE INTO prix_reference
+        (type, produit_id, unite, ville, prix, date_debut, date_fin, source)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [r.type, r.produitId, r.unite, r.ville, r.prix, r.dateDebut, r.dateFin, r.source]
+    );
+  }
+}
+
+export async function getReferences(): Promise<PrixReference[]> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<any>("SELECT * FROM prix_reference");
+  return rows.map((r: any) => ({
+    type: r.type,
+    produitId: r.produit_id,
+    unite: r.unite,
+    ville: r.ville,
+    prix: r.prix,
+    dateDebut: r.date_debut,
+    dateFin: r.date_fin ?? null,
+    source: r.source ?? "",
   }));
 }
 
@@ -508,7 +685,7 @@ export async function getSignalementDetail(id: string): Promise<{
   const db = await getDb();
   const row = await db.getFirstAsync<any>(
     `SELECT s.*, u.pseudonyme, u.score_confiance
-     FROM signalements s
+     FROM signalements_v s
      LEFT JOIN users u ON u.id = s.user_id
      WHERE s.id = ?`,
     [id]
@@ -553,12 +730,12 @@ export async function getEvolutionPrix(
       MIN(prix)            as prix_min,
       MAX(prix)            as prix_max,
       COUNT(*)             as nb_signalements
-    FROM signalements
+    FROM signalements_v
     WHERE produit_id = ?
       AND commune = ?
       AND date_signalement > ?
       AND score_fiabilite >= ${SEUILS.AFFICHAGE_PUBLIC}
-      AND nb_confirmations >= ${SEUIL_CONFIRMATIONS}
+      AND appuis >= ${SEUIL_APPUIS}
       ${whereTypeLieu}
     GROUP BY jour
     ORDER BY jour ASC`,
@@ -616,7 +793,7 @@ export async function getHistoriqueSignalements(
   const depuis = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   const rows = await db.getAllAsync<any>(
     `SELECT s.*, u.pseudonyme
-     FROM signalements s
+     FROM signalements_v s
      LEFT JOIN users u ON u.id = s.user_id
      WHERE s.produit_id = ?
        AND s.commune = ?
@@ -658,6 +835,8 @@ function rowToSignalement(r: any): Signalement {
     quartier: r.quartier,
     typeLieu: r.type_lieu ?? "autre",
     nomLieu: r.nom_lieu ?? "",
+    moment: r.moment ?? "normal",
+    appuis: r.appuis ?? undefined,
     latitude: r.latitude ?? undefined,
     longitude: r.longitude ?? undefined,
     dateSignalement: r.date_signalement,
@@ -688,7 +867,7 @@ export async function purgerDonneesDemo(): Promise<void> {
   const db = await getDb();
   await db.execAsync(`
     DELETE FROM validations WHERE signalement_id IN
-      (SELECT id FROM signalements WHERE user_id LIKE 'demo-user-%');
+      (SELECT id FROM signalements_v WHERE user_id LIKE 'demo-user-%');
     DELETE FROM signalements WHERE user_id LIKE 'demo-user-%';
     DELETE FROM users WHERE id LIKE 'demo-user-%';
   `);

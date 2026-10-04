@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert, ActivityIndicator } from "react-native";
 import { router } from "expo-router";
 import { inscrireEnseigne, TypeEnseigne, TYPES_ENSEIGNE } from "@/services/enseignes";
-import { COMMUNES_ABIDJAN } from "@/constants/types";
+import SelecteurZone from "@/components/SelecteurZone";
 import { useAppStore } from "@/stores/useAppStore";
 import Icone from "@/components/Icone";
 
@@ -68,14 +68,8 @@ export default function InscriptionEnseigne() {
         ))}
       </View>
 
-      <Text style={styles.label}>Commune *</Text>
-      <View style={styles.row}>
-        {COMMUNES_ABIDJAN.map((c) => (
-          <TouchableOpacity key={c} style={[styles.chip, commune === c && styles.chipActive]} onPress={() => setCommune(c)}>
-            <Text style={[styles.chipText, commune === c && styles.chipTextActive]}>{c}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      <Text style={styles.label}>Ville et commune *</Text>
+      <SelecteurZone zone={commune} onChange={setCommune} />
 
       <Text style={styles.label}>Quartier</Text>
       <TextInput style={styles.input} placeholder="Ex: Zone 4" value={quartier} onChangeText={setQuartier} />

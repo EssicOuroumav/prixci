@@ -22,7 +22,7 @@ await db.exec(`
   GRANT USAGE ON SCHEMA auth TO anon, authenticated;
   GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA auth TO anon, authenticated;
 `);
-for (const f of ["supabase_schema.sql", "supabase_migration_sprint3.sql", "supabase_migration_v2.sql", "supabase_migration_v2.sql"]) {
+for (const f of ["supabase_schema.sql", "supabase_migration_sprint3.sql", "supabase_migration_v2.sql", "supabase_migration_v2.sql", "supabase_migration_v3.sql", "supabase_migration_v3.sql"]) {
   try { await db.exec(readFileSync(P + f, "utf8")); ok("script exécuté : " + f, true); }
   catch (e) { ok("script exécuté : " + f, false, e.message); }
 }
@@ -47,17 +47,17 @@ await refuse("profil : impossible de créer le profil d'un autre", A, `INSERT IN
 
 // ── Signalement : comme sync.ts (avec lieu, sans score ni compteurs) ──
 const ins = `INSERT INTO signalements (id,user_id,produit_id,produit_nom,categorie,sous_categorie,prix,unite,commune,quartier,type_lieu,nom_lieu,latitude,longitude,date_signalement)
-  VALUES ($1,$2,'tomate','Tomate','alimentation','legumes_fruits',300,'kg','Yopougon','Siporex',$3,'Marché Siporex',NULL,NULL,NOW()) ON CONFLICT (id) DO NOTHING`;
-await en(A, ins, ["s1", A, "marche_traditionnel"]);
+  VALUES ($1,$2,$4,'Produit','alimentation','legumes_fruits',300,'kg','Yopougon','Siporex',$3,'Marché Siporex',NULL,NULL,NOW()) ON CONFLICT (id) DO NOTHING`;
+await en(A, ins, ["s1", A, "marche_traditionnel", "tomate"]);
 let s = (await admin(`SELECT * FROM signalements WHERE id='s1'`)).rows[0];
 ok("signalement : lieu enregistré", s.type_lieu === "marche_traditionnel" && s.nom_lieu === "Marché Siporex");
 ok("signalement : score initial = 60 % de 50 = 30", Number(s.score_fiabilite) === 30);
 ok("signalement : compteur de l'auteur incrémenté", (await admin(`SELECT nb_signalements FROM users WHERE id=$1`, [A])).rows[0].nb_signalements === 1);
-await en(A, ins, ["s1", A, "marche_traditionnel"]);
+await en(A, ins, ["s1", A, "marche_traditionnel", "tomate"]);
 ok("signalement : renvoi du même identifiant sans doublon ni double comptage", (await admin(`SELECT nb_signalements FROM users WHERE id=$1`, [A])).rows[0].nb_signalements === 1);
-await en(A, ins, ["s2", A, "gare_routiere"]);
+await en(A, ins, ["s2", A, "gare_routiere", "oignon"]);
 ok("signalement : type de lieu gare_routiere accepté", (await admin(`SELECT COUNT(*)::int n FROM signalements`)).rows[0].n === 2);
-await refuse("signalement : impossible de signaler au nom d'un autre", B, ins, ["s3", A, "autre"]);
+await refuse("signalement : impossible de signaler au nom d'un autre", B, ins, ["s3", A, "autre", "tomate"]);
 await refuse("signalement : compteurs forgés ignorés ou refusés", B, `UPDATE signalements SET nb_confirmations = 50 WHERE id='s1'`);
 
 // ── Votes ──
@@ -100,6 +100,18 @@ await refuse("prix officiel : un autre compte ne peut pas publier pour cette ens
 await refuse("prix officiel : un autre compte ne peut pas supprimer", B, `DELETE FROM prix_officiels WHERE enseigne_id=$1`, [eid]);
 ok("prix officiel : le prix est resté à 450", Number((await admin(`SELECT prix FROM prix_officiels`)).rows[0].prix) === 450);
 ok("prix officiel : le propriétaire peut supprimer", (await en(A, `DELETE FROM prix_officiels WHERE enseigne_id=$1`, [eid])).affectedRows === 1);
+
+// ── Prix officiels et limites anti-abus (migration v3) ──
+const nbRef = (await en(null, `SELECT COUNT(*)::int n, COUNT(DISTINCT ville)::int v FROM prix_reference`)).rows[0];
+ok("prix officiels : bulletin chargé une seule fois, 6 villes", nbRef.n === 339 && nbRef.v === 6, `${nbRef.n} lignes`);
+ok("prix officiels : patate douce à Abidjan = 700", Number((await en(null, `SELECT prix FROM prix_reference WHERE produit_id='patate-douce' AND ville='Abidjan'`)).rows[0].prix) === 700);
+await refuse("prix officiels : un utilisateur ne peut pas les modifier", A, `UPDATE prix_reference SET prix = 1`);
+await refuse("prix officiels : un utilisateur ne peut pas en ajouter", A, `INSERT INTO prix_reference (type,produit_id,produit_nom,unite,ville,prix,date_debut) VALUES ('plafond','x','x','kg','Abidjan',1,NOW())`);
+ok("transport : moment par défaut « normal »", (await admin(`SELECT moment FROM signalements WHERE id='s1'`)).rows[0].moment === "normal");
+await refuse("anti-abus : même produit au même endroit refusé dans la journée", A, ins, ["s9", A, "marche_traditionnel", "tomate"]);
+for (let i = 0; i < 28; i++) await en(A, ins, [`lot${i}`, A, "marche_traditionnel", `produit-${i}`]);
+ok("anti-abus : 30 signalements acceptés sur 24 h", (await admin(`SELECT COUNT(*)::int n FROM signalements WHERE user_id=$1`, [A])).rows[0].n === 30);
+await refuse("anti-abus : le 31e est refusé", A, ins, ["lot-trop", A, "marche_traditionnel", "produit-trop"]);
 
 // ── Abus ──
 await en(B, `INSERT INTO abus (cible_type,cible_id,motif) VALUES ('signalement','s1','Prix manifestement faux')`);
