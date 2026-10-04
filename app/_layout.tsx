@@ -83,6 +83,8 @@ export default function RootLayout() {
         <Stack.Screen name="enseigne/inscription" options={{ animation: "slide_from_right" }} />
         <Stack.Screen name="legal" options={{ animation: "slide_from_right" }} />
         <Stack.Screen name="commerce" options={{ animation: "slide_from_right" }} />
+        <Stack.Screen name="marche" options={{ animation: "slide_from_right" }} />
+        <Stack.Screen name="carte" options={{ animation: "slide_from_right" }} />
       </Stack>
     </>
   );

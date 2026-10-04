@@ -3,6 +3,8 @@
 Mise à jour : 4 octobre 2026. Le but du produit et les règles sont dans `CONTEXTE.md`.
 
 ## Fait
+- « Faire mon marché » : liste de courses, commerces classés pour la liste (le plus de produits au prix officiel, puis le plus proche), prix officiel de chaque produit, envoi WhatsApp
+- Carte des commerces (vert : au prix officiel, rouge : dépassements) et tri par distance
 - Prix officiels visibles dès l'ouverture : bulletin « C'est combien ? » du 28 septembre au 5 octobre 2026 (6 villes) et relevé OCPV du 7 au 13 septembre 2026 (24 régions, prix mini, maxi et moyen)
 - Classement des commerces : « au prix officiel » ou « dépassements constatés », fiche par commerce, itinéraire
 - Validation d'un prix par 3 citoyens concordants (remplace les 10 confirmations)
@@ -20,13 +22,14 @@ Mise à jour : 4 octobre 2026. Le but du produit et les règles sont dans `CONTE
 
 ## Prochaine étape de développement
 - Prix plafonnés par arrêté (riz, huile, sucre, tomate, lait, pâtes, viande) : par marque et par zone. Les seuls documents publiés datent de juin 2022 ; il faut les plafonds en vigueur.
-- Carte des commerces avec repères (aujourd'hui : liste et itinéraire)
 - Photo du prix comme preuve
 - Alertes (nouveau commerce au prix officiel près de chez moi, dépassement constaté)
 - Tarifs officiels de transport, s'il en existe une source
 - Logement
 
 ## Avant publication
+- Clé Google Maps pour la version Android installable (la carte fonctionne sans clé dans Expo Go uniquement)
+- Amorcer les données : relevés de prix dans une commune pilote avant d'ouvrir au public
 - Faire relire les conditions d'utilisation (`app/legal.tsx`) et y mettre une adresse de contact
 - Avis juridique sur le fait de nommer un commerce en dépassement, et déclaration à l'ARTCI (données de position)
 - Activer la protection CAPTCHA des connexions anonymes dans Supabase

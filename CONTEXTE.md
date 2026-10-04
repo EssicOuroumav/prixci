@@ -16,6 +16,8 @@ app/
   (tabs)/signaler.tsx    Formulaire en 3 étapes
   (tabs)/profil.tsx      Score, mes signalements, mes enseignes
   detail/[id].tsx        Détail d'un signalement, graphique, votes
+  marche.tsx             « Faire mon marché » : liste de courses puis commerces où l'acheter
+  carte.tsx              Carte des commerces
   commerce.tsx           Fiche d'un commerce : ses prix vérifiés comparés aux prix officiels
   enseigne/[id].tsx      Fiche d'une enseigne ; gestion des prix par son propriétaire
   enseigne/inscription.tsx
@@ -28,6 +30,7 @@ services/
   reference.ts           prix officiels de l'État et comparaison
   commerces.ts           classement des commerces
   partage.ts             partage WhatsApp et itinéraire
+  position.ts            position de l'utilisateur et distances
   enseignes.ts           enseignes et prix officiels (serveur uniquement)
   abus.ts                signalement de contenus abusifs
 components/
@@ -39,6 +42,9 @@ tests/                   test des scripts SQL dans un Postgres embarqué
 
 ## But du produit
 PrixCI conduit les citoyens vers les commerces qui vendent au prix fixé ou publié par l'État. Le signalement n'est qu'un moyen : il sert à classer les commerces. Priorités : denrées alimentaires, puis transport, puis logement (plus tard).
+
+## Parcours principal
+Une personne qui fait son marché ouvre « Faire mon marché », coche ses produits, puis voit les commerces de sa zone qui les vendent au prix officiel (le plus de produits de la liste d'abord, puis le plus proche) et le prix officiel de chaque produit.
 
 ## Règles métier
 - **Prix officiels** (`services/reference.ts`) : deux natures à ne jamais confondre. « plafond » = maximum fixé par arrêté, obligatoire. « moyen » = prix moyen indicatif, par ville, issu de deux publications hebdomadaires : le bulletin « C'est combien ? » (6 villes, `constants/prixOfficiels.ts`) et le relevé OCPV (24 régions, avec prix mini et maxi, `constants/prixOfficielsOcpv.ts`). Pour un même produit dans une même ville, la publication la plus récente l'emporte. Les deux sont embarquées dans l'application ; la table Supabase `prix_reference` prend le relais et se met à jour sans republier.

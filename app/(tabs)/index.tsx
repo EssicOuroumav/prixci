@@ -249,7 +249,7 @@ export default function HomeScreen() {
           }
         >
           {nbEnAttente > 0 && (
-            <TouchableOpacity style={styles.attenteBanner} onPress={() => router.push("/(tabs)/explorer")}>
+            <TouchableOpacity style={[styles.attenteBanner, { marginBottom: 10 }]} onPress={() => router.push("/(tabs)/explorer")}>
               <Text style={styles.attenteTitle}>
                 {nbEnAttente} signalement{nbEnAttente > 1 ? "s" : ""} à confirmer à {communeSelectionnee}
               </Text>
@@ -294,10 +294,39 @@ export default function HomeScreen() {
             </>
           ) : (
             <>
+              {/* ── Faire mon marché ───────────────────────── */}
+              <TouchableOpacity
+                style={styles.marche}
+                onPress={() => router.push("/marche")}
+                activeOpacity={0.85}
+              >
+                <View style={styles.marcheIcone}>
+                  <Icone nom="basket" taille={26} couleur={VERT} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.marcheTitre}>Faire mon marché</Text>
+                  <Text style={styles.marcheTexte}>
+                    Coche tes produits : vois où les acheter au prix officiel, et combien les payer.
+                  </Text>
+                </View>
+                <Icone nom="chevron-forward" taille={20} couleur="rgba(255,255,255,0.8)" />
+              </TouchableOpacity>
+
               {/* ── Commerces au prix officiel ─────────────── */}
-              <Text style={styles.sectionTitre}>
-                Commerces au prix officiel à {communeSelectionnee}
-              </Text>
+              <View style={styles.sectionRow}>
+                <Text style={[styles.sectionTitre, { flex: 1 }]}>
+                  Commerces au prix officiel à {communeSelectionnee}
+                </Text>
+                <TouchableOpacity
+                  style={styles.lienCarte}
+                  onPress={() =>
+                    router.push({ pathname: "/carte", params: { commune: communeSelectionnee } })
+                  }
+                >
+                  <Icone nom="map-outline" taille={15} couleur={VERT} />
+                  <Text style={styles.lienCarteTexte}>Carte</Text>
+                </TouchableOpacity>
+              </View>
               {commercesConformes.length === 0 ? (
                 <View style={styles.videBox}>
                   <Icone nom="storefront-outline" taille={40} couleur="#B8C4BC" />
@@ -396,6 +425,28 @@ const styles = StyleSheet.create({
     marginTop: 12,
     marginBottom: 10,
   },
+  marche: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: VERT,
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 4,
+  },
+  marcheIcone: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  marcheTitre: { fontSize: 17, fontWeight: "800", color: "#FFFFFF" },
+  marcheTexte: { fontSize: 12, color: "rgba(255,255,255,0.9)", marginTop: 2, lineHeight: 17 },
+  sectionRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  lienCarte: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
+  lienCarteTexte: { color: VERT, fontSize: 13, fontWeight: "700" },
   attenteBanner: {
     backgroundColor: "#FFF8E6",
     borderRadius: 12,

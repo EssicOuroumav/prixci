@@ -20,6 +20,15 @@ interface AppState {
   categorieActive: Categorie;
   setCategorieActive: (categorie: Categorie) => void;
 
+  // ─── Liste de courses (« Faire mon marché ») ──────────
+  listeCourses: string[];
+  setListeCourses: (produitIds: string[]) => void;
+  basculerProduitListe: (produitId: string) => void;
+
+  // ─── Dernière position connue, pour trier par distance ─
+  position: { latitude: number; longitude: number } | null;
+  setPosition: (position: { latitude: number; longitude: number } | null) => void;
+
   // ─── Données agrégées (écran explorer) ────────────────
   prixAgreges: PrixAgrege[];
   setPrixAgreges: (prix: PrixAgrege[]) => void;
@@ -62,6 +71,18 @@ export const useAppStore = create<AppState>((set) => ({
 
   categorieActive: "alimentation",
   setCategorieActive: (categorieActive) => set({ categorieActive }),
+
+  listeCourses: [],
+  setListeCourses: (listeCourses) => set({ listeCourses }),
+  basculerProduitListe: (produitId) =>
+    set((state) => ({
+      listeCourses: state.listeCourses.includes(produitId)
+        ? state.listeCourses.filter((id) => id !== produitId)
+        : [...state.listeCourses, produitId],
+    })),
+
+  position: null,
+  setPosition: (position) => set({ position }),
 
   prixAgreges: [],
   setPrixAgreges: (prixAgreges) => set({ prixAgreges }),

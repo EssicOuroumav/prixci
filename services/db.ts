@@ -558,6 +558,7 @@ export async function rechercherProduitsSaisis(
 // ─── COMMERCES ────────────────────────────────────────────
 
 export interface PrixCommerceLigne {
+  commune: string;
   typeLieu: string;
   nomLieu: string;
   quartier: string;
@@ -575,11 +576,12 @@ export interface PrixCommerceLigne {
  * Prix vérifiés de chaque commerce nommé d'une zone, produit par produit.
  * C'est la matière première du classement des commerces (services/commerces.ts).
  */
-export async function getPrixParCommerce(commune: string): Promise<PrixCommerceLigne[]> {
+export async function getPrixParCommerce(commune?: string): Promise<PrixCommerceLigne[]> {
   const db = await getDb();
   const depuis = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   const rows = await db.getAllAsync<any>(
     `SELECT
+      commune,
       type_lieu,
       MIN(TRIM(nom_lieu)) as nom_lieu,
       MAX(quartier) as quartier,
@@ -592,16 +594,17 @@ export async function getPrixParCommerce(commune: string): Promise<PrixCommerceL
       AVG(latitude) as latitude,
       AVG(longitude) as longitude
     FROM signalements_v
-    WHERE commune = ?
+    WHERE (? IS NULL OR commune = ?)
       AND categorie = 'alimentation'
       AND TRIM(nom_lieu) != ''
       AND date_signalement > ?
       AND score_fiabilite >= ?
       AND appuis >= ?
-    GROUP BY type_lieu, LOWER(TRIM(nom_lieu)), produit_id, unite`,
-    [commune, depuis, SEUILS.AFFICHAGE_PUBLIC, SEUIL_APPUIS]
+    GROUP BY commune, type_lieu, LOWER(TRIM(nom_lieu)), produit_id, unite`,
+    [commune ?? null, commune ?? null, depuis, SEUILS.AFFICHAGE_PUBLIC, SEUIL_APPUIS]
   );
   return rows.map((r: any) => ({
+    commune: r.commune,
     typeLieu: r.type_lieu,
     nomLieu: r.nom_lieu,
     quartier: r.quartier ?? "",

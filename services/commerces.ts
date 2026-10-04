@@ -41,15 +41,15 @@ export function cleCommerce(typeLieu: string, nomLieu: string): string {
 }
 
 /** Regroupe les prix vérifiés par commerce et les compare aux prix officiels. */
-export function construireCommerces(
-  commune: string,
-  lignes: PrixCommerceLigne[]
-): Commerce[] {
+export function construireCommerces(lignes: PrixCommerceLigne[]): Commerce[] {
   const parCle = new Map<string, Commerce>();
 
   for (const ligne of lignes) {
+    const { commune } = ligne;
     const cle = cleCommerce(ligne.typeLieu, ligne.nomLieu);
-    let commerce = parCle.get(cle);
+    // Deux commerces de même nom dans deux zones restent distincts
+    const cleGlobale = `${commune}|${cle}`;
+    let commerce = parCle.get(cleGlobale);
     if (!commerce) {
       commerce = {
         cle,
@@ -65,7 +65,7 @@ export function construireCommerces(
         statut: "non_evalue",
         derniereMAJ: ligne.derniereMAJ,
       };
-      parCle.set(cle, commerce);
+      parCle.set(cleGlobale, commerce);
     }
 
     const reference = prixDeReference(ligne.produitId, ligne.unite, commune);
@@ -99,10 +99,54 @@ export function construireCommerces(
   );
 }
 
-export async function getCommerces(commune: string): Promise<Commerce[]> {
-  return construireCommerces(commune, await getPrixParCommerce(commune));
+/** Commerces d'une zone, ou de toutes les zones si aucune n'est précisée. */
+export async function getCommerces(commune?: string): Promise<Commerce[]> {
+  return construireCommerces(await getPrixParCommerce(commune));
 }
 
 export async function getCommerce(commune: string, cle: string): Promise<Commerce | null> {
   return (await getCommerces(commune)).find((c) => c.cle === cle) ?? null;
+}
+
+// ─── Faire mon marché ─────────────────────────────────────
+
+export interface CommercePourListe {
+  commerce: Commerce;
+  /** produits de la liste vendus ici au prix officiel ou en dessous */
+  auPrixOfficiel: PrixCommerce[];
+  /** produits de la liste vendus ici au-dessus du prix officiel */
+  auDessus: PrixCommerce[];
+  /** produits de la liste vendus ici, sans prix officiel pour comparer */
+  sansReference: PrixCommerce[];
+  distanceKm: number | null;
+}
+
+/**
+ * Où acheter une liste de produits : les commerces qui en vendent le plus
+ * au prix officiel d'abord, puis les plus proches.
+ */
+export function commercesPourListe(
+  commerces: Commerce[],
+  produitIds: string[],
+  distance: (c: Commerce) => number | null
+): CommercePourListe[] {
+  const voulus = new Set(produitIds);
+  return commerces
+    .map((commerce) => {
+      const concernes = commerce.prix.filter((p) => voulus.has(p.produitId));
+      return {
+        commerce,
+        auPrixOfficiel: concernes.filter((p) => p.statut === "conforme"),
+        auDessus: concernes.filter((p) => p.statut === "depassement"),
+        sansReference: concernes.filter((p) => p.statut === "sans_reference"),
+        distanceKm: distance(commerce),
+      };
+    })
+    .filter((r) => r.auPrixOfficiel.length + r.auDessus.length + r.sansReference.length > 0)
+    .sort(
+      (a, b) =>
+        b.auPrixOfficiel.length - a.auPrixOfficiel.length ||
+        a.auDessus.length - b.auDessus.length ||
+        (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity)
+    );
 }
