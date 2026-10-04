@@ -1,12 +1,17 @@
 import * as Network from "expo-network";
-import { supabase } from "./auth";
+import { supabase, getSessionUserId, pushUserProfile } from "./auth";
 import {
   getUnsyncedSignalements,
   markSignalementSynced,
   getUnsyncedValidations,
+  markValidationsSynced,
   upsertSignalementsFromServer,
+  getUser,
+  saveUser,
 } from "./db";
+import { SEUILS } from "./scoring";
 import { Signalement } from "@/constants/types";
+import { useAppStore } from "@/stores/useAppStore";
 
 // ============================================================
 // SERVICE DE SYNCHRONISATION OFFLINE-FIRST
@@ -18,7 +23,6 @@ let syncInProgress = false;
 
 /**
  * Point d'entrée principal.
- * Appelé au démarrage de l'app et à chaque retour en foreground.
  * Silencieux : ne bloque jamais l'UI.
  */
 export async function syncIfOnline(
@@ -28,7 +32,14 @@ export async function syncIfOnline(
   if (syncInProgress) return;
 
   const network = await Network.getNetworkStateAsync();
-  if (!network.isConnected || !network.isInternetReachable) {
+  if (!network.isConnected || network.isInternetReachable === false) {
+    onStatusChange?.("offline");
+    return;
+  }
+
+  // Sans session Supabase (compte créé hors ligne), rien ne peut être envoyé
+  const userId = await getSessionUserId();
+  if (!userId) {
     onStatusChange?.("offline");
     return;
   }
@@ -37,16 +48,18 @@ export async function syncIfOnline(
   onStatusChange?.("syncing");
 
   try {
-    await Promise.all([
-      pushUnsyncedSignalements(),
-      pushUnsyncedValidations(),
-    ]);
+    // Le profil doit exister côté serveur avant les signalements (clé étrangère)
+    const user = await getUser(userId);
+    if (user) await pushUserProfile(user);
 
-    if (commune) {
-      await pullSignalementsFromServer(commune);
-    }
+    // Les signalements d'abord : les votes y font référence
+    const signalementsOk = await pushUnsyncedSignalements();
+    const validationsOk = await pushUnsyncedValidations();
 
-    onStatusChange?.("success");
+    if (commune) await pullSignalementsFromServer(commune);
+    await pullUserProfile(userId);
+
+    onStatusChange?.(signalementsOk && validationsOk ? "success" : "error");
   } catch (err) {
     console.warn("[Sync] Échec silencieux :", err);
     onStatusChange?.("error");
@@ -55,36 +68,58 @@ export async function syncIfOnline(
   }
 }
 
-// ─── PUSH : envoyer les données locales non synchronisées ──
+/**
+ * Lance une synchronisation branchée sur le store global :
+ * met à jour l'indicateur d'état puis le profil affiché.
+ */
+export async function syncAvecStore(): Promise<void> {
+  const { communeSelectionnee, setSyncStatus, setLastSyncAt } =
+    useAppStore.getState();
 
-async function pushUnsyncedSignalements(): Promise<void> {
-  const unsynced = await getUnsyncedSignalements();
-  if (unsynced.length === 0) return;
+  await syncIfOnline(communeSelectionnee, (status) => {
+    setSyncStatus(status);
+    if (status === "success") setLastSyncAt(new Date().toISOString());
+  });
 
-  const payload = unsynced.map(signalementToRow);
-
-  // Batch insert par lots de 20 pour éviter les timeouts
-  const BATCH_SIZE = 20;
-  for (let i = 0; i < payload.length; i += BATCH_SIZE) {
-    const batch = payload.slice(i, i + BATCH_SIZE);
-    const { error } = await supabase
-      .from("signalements")
-      .upsert(batch, { onConflict: "id", ignoreDuplicates: false });
-
-    if (!error) {
-      // Marquer comme syncés
-      for (const s of unsynced.slice(i, i + BATCH_SIZE)) {
-        await markSignalementSynced(s.id);
-      }
-    } else {
-      console.warn("[Sync] Erreur push signalements :", error.message);
-    }
+  const { user, setUser } = useAppStore.getState();
+  if (user) {
+    const aJour = await getUser(user.id);
+    if (aJour) setUser(aJour);
   }
 }
 
-async function pushUnsyncedValidations(): Promise<void> {
+// ─── PUSH : envoyer les données locales non synchronisées ──
+
+async function pushUnsyncedSignalements(): Promise<boolean> {
+  const unsynced = await getUnsyncedSignalements();
+  if (unsynced.length === 0) return true;
+
+  let toutEnvoye = true;
+
+  // Lots de 20 pour éviter les timeouts
+  const BATCH_SIZE = 20;
+  for (let i = 0; i < unsynced.length; i += BATCH_SIZE) {
+    const lot = unsynced.slice(i, i + BATCH_SIZE);
+    const { error } = await supabase
+      .from("signalements")
+      .upsert(lot.map(signalementToRow), {
+        onConflict: "id",
+        ignoreDuplicates: true,
+      });
+
+    if (!error) {
+      for (const s of lot) await markSignalementSynced(s.id);
+    } else {
+      toutEnvoye = false;
+      console.warn("[Sync] Erreur push signalements :", error.message);
+    }
+  }
+  return toutEnvoye;
+}
+
+async function pushUnsyncedValidations(): Promise<boolean> {
   const unsynced = await getUnsyncedValidations();
-  if (unsynced.length === 0) return;
+  if (unsynced.length === 0) return true;
 
   const payload = unsynced.map((v) => ({
     id: v.id,
@@ -98,22 +133,45 @@ async function pushUnsyncedValidations(): Promise<void> {
     .from("validations")
     .upsert(payload, { onConflict: "id", ignoreDuplicates: true });
 
-  if (error) {
-    console.warn("[Sync] Erreur push validations :", error.message);
+  if (!error) {
+    await markValidationsSynced(unsynced.map((v) => v.id));
+    return true;
   }
+
+  // Un seul vote refusé fait échouer tout le lot : on renvoie un par un
+  // pour ne pas bloquer les autres.
+  let toutEnvoye = true;
+  for (const ligne of payload) {
+    const { error: erreurLigne } = await supabase
+      .from("validations")
+      .upsert(ligne, { onConflict: "id", ignoreDuplicates: true });
+
+    if (!erreurLigne || REFUS_DEFINITIFS.includes(erreurLigne.code)) {
+      await markValidationsSynced([ligne.id]);
+    } else {
+      toutEnvoye = false;
+      console.warn("[Sync] Erreur push validation :", erreurLigne.message);
+    }
+  }
+  return toutEnvoye;
 }
+
+// Codes Postgres pour lesquels réessayer ne changera rien :
+// signalement inconnu du serveur, vote en double, vote sur son propre signalement.
+const REFUS_DEFINITIFS = ["23503", "23505", "P0001"];
 
 // ─── PULL : récupérer les données du serveur ───────────────
 
 async function pullSignalementsFromServer(commune: string): Promise<void> {
-  const depuis = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  // 30 jours : la même fenêtre que les moyennes affichées
+  const depuis = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
   const { data, error } = await supabase
     .from("signalements")
     .select("*")
     .eq("commune", commune)
     .gte("date_signalement", depuis)
-    .gte("score_fiabilite", 30)
+    .gte("score_fiabilite", SEUILS.AFFICHAGE_PUBLIC)
     .order("date_signalement", { ascending: false })
     .limit(500);
 
@@ -122,12 +180,32 @@ async function pullSignalementsFromServer(commune: string): Promise<void> {
     return;
   }
 
-  const signalements: Signalement[] = data.map(rowToSignalement);
-  await upsertSignalementsFromServer(signalements);
+  await upsertSignalementsFromServer(data.map(rowToSignalement));
+}
+
+/** Le score et les compteurs du profil font foi côté serveur. */
+async function pullUserProfile(userId: string): Promise<void> {
+  const { data, error } = await supabase
+    .from("users")
+    .select("*")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (error || !data) return;
+
+  await saveUser({
+    id: data.id,
+    pseudonyme: data.pseudonyme,
+    scoreConfiance: data.score_confiance,
+    nbSignalements: data.nb_signalements,
+    nbValidationsRecues: data.nb_validations_recues,
+    dateCreation: data.date_creation,
+  });
 }
 
 // ─── Mappers ──────────────────────────────────────────────
 
+// Le score et les compteurs de votes ne sont pas envoyés : le serveur les calcule.
 function signalementToRow(s: Signalement): Record<string, unknown> {
   return {
     id: s.id,
@@ -140,12 +218,11 @@ function signalementToRow(s: Signalement): Record<string, unknown> {
     unite: s.unite,
     commune: s.commune,
     quartier: s.quartier,
+    type_lieu: s.typeLieu,
+    nom_lieu: s.nomLieu,
     latitude: s.latitude ?? null,
     longitude: s.longitude ?? null,
     date_signalement: s.dateSignalement,
-    score_fiabilite: s.scoreFilabilite,
-    nb_confirmations: s.nbConfirmations,
-    nb_contestations: s.nbContestations,
   };
 }
 
@@ -157,14 +234,16 @@ function rowToSignalement(r: Record<string, any>): Signalement {
     produitNom: r.produit_nom,
     categorie: r.categorie,
     sousCategorie: r.sous_categorie,
-    prix: r.prix,
+    prix: Number(r.prix),
     unite: r.unite,
     commune: r.commune,
     quartier: r.quartier ?? "",
+    typeLieu: r.type_lieu ?? "autre",
+    nomLieu: r.nom_lieu ?? "",
     latitude: r.latitude ?? undefined,
     longitude: r.longitude ?? undefined,
     dateSignalement: r.date_signalement,
-    scoreFilabilite: r.score_fiabilite,
+    scoreFilabilite: Number(r.score_fiabilite),
     nbConfirmations: r.nb_confirmations,
     nbContestations: r.nb_contestations,
     synced: true,

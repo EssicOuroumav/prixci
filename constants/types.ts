@@ -92,13 +92,17 @@ export interface PrixAgrege {
   produitId: string;
   produitNom: string;
   commune: string;
-  prixMoyen: number;
-  prixMin: number;
-  prixMax: number;
+  categorie: Categorie;
+  /** null tant qu'aucun signalement n'est vérifié */
+  prixMoyen: number | null;
+  prixMin: number | null;
+  prixMax: number | null;
   unite: Unite;
+  /** signalements vérifiés */
   nbSignalements: number;
+  /** signalements encore à confirmer */
+  nbEnAttente: number;
   derniereMAJ: string;
-  tendance: "hausse" | "baisse" | "stable";
 }
 
 // ─── Type de point de vente ────────────────────────────────
@@ -109,6 +113,7 @@ export type TypeLieu =
   | "vendeur_ambulant"
   | "station_service"
   | "bord_route"
+  | "gare_routiere"
   | "autre";
 
 export const TYPES_LIEU: { id: TypeLieu; label: string; emoji: string }[] = [
@@ -118,6 +123,7 @@ export const TYPES_LIEU: { id: TypeLieu; label: string; emoji: string }[] = [
   { id: "vendeur_ambulant",    label: "Vendeur ambulant",    emoji: "🛒" },
   { id: "bord_route",          label: "Bord de route",       emoji: "🛣️" },
   { id: "station_service",     label: "Station-service",     emoji: "⛽" },
+  { id: "gare_routiere",       label: "Gare / arrêt",        emoji: "🚏" },
   { id: "autre",               label: "Autre",               emoji: "📍" },
 ];
 

@@ -1,4 +1,5 @@
-import { Signalement, UserProfile } from "@/constants/types";
+import { Signalement, UserProfile, SousCategorie, Unite, TypeLieu } from "@/constants/types";
+import { SEUIL_CONFIRMATIONS, SEUILS } from "./scoring";
 import { insertSignalement, saveUser, getUser } from "./db";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -24,11 +25,11 @@ function mkSignal(
   userId: string,
   produitId: string,
   produitNom: string,
-  sousCategorie: string,
+  sousCategorie: SousCategorie,
   prix: number,
-  unite: string,
+  unite: Unite,
   commune: string,
-  typeLieu: string,
+  typeLieu: TypeLieu,
   nomLieu: string,
   joursAvant: number,
   scoreFilabilite: number,
@@ -48,13 +49,16 @@ function mkSignal(
     unite,
     commune,
     quartier: "",
-    typeLieu: typeLieu as any,
+    typeLieu,
     nomLieu,
     latitude: undefined,
     longitude: undefined,
     dateSignalement: date,
     scoreFilabilite,
-    nbConfirmations: nbConf,
+    // Les signalements fiables de la démo sont présentés comme déjà vérifiés ;
+    // les autres restent dans la file « À confirmer ».
+    nbConfirmations:
+      scoreFilabilite >= SEUILS.FIABLE ? nbConf + SEUIL_CONFIRMATIONS : nbConf,
     nbContestations: nbCont,
     synced: true,
     createdAt: date,
@@ -224,22 +228,22 @@ export const SIGNALEMENTS_DEMO: Signalement[] = [
   // ══════════════════════════════════════════════════════
 
   mkSignal("d-049","demo-user-001","gbaka-yopougon-adjame","Gbaka Yopougon → Adjamé","transport_gbaka",
-    200,"trajet","Yopougon","transport_gbaka","Terminus Selmer",1,90,12,0,"transport"),
+    200,"trajet","Yopougon","gare_routiere","Terminus Selmer",1,90,12,0,"transport"),
   mkSignal("d-050","demo-user-003","gbaka-yopougon-adjame","Gbaka Yopougon → Adjamé","transport_gbaka",
-    300,"trajet","Yopougon","transport_gbaka","Terminus Selmer",2,55,1,5,"transport"),
+    300,"trajet","Yopougon","gare_routiere","Terminus Selmer",2,55,1,5,"transport"),
 
   mkSignal("d-051","demo-user-002","gbaka-abobo-adjame","Gbaka Abobo → Adjamé","transport_gbaka",
-    200,"trajet","Abobo","transport_gbaka","Gare Abobo",1,88,9,0,"transport"),
+    200,"trajet","Abobo","gare_routiere","Gare Abobo",1,88,9,0,"transport"),
   mkSignal("d-052","demo-user-004","gbaka-abobo-adjame","Gbaka Abobo → Adjamé","transport_gbaka",
-    250,"trajet","Abobo","transport_gbaka","Gare Abobo",3,60,2,2,"transport"),
+    250,"trajet","Abobo","gare_routiere","Gare Abobo",3,60,2,2,"transport"),
 
   mkSignal("d-053","demo-user-005","woro-cocody-plateau","Woro-woro Cocody → Plateau","transport_woro",
-    300,"trajet","Cocody","transport_woro","Carrefour Attoban",2,85,7,0,"transport"),
+    300,"trajet","Cocody","gare_routiere","Carrefour Attoban",2,85,7,0,"transport"),
   mkSignal("d-054","demo-user-001","woro-cocody-plateau","Woro-woro Cocody → Plateau","transport_woro",
-    500,"trajet","Cocody","transport_woro","Carrefour Attoban",4,42,0,4,"transport"),
+    500,"trajet","Cocody","gare_routiere","Carrefour Attoban",4,42,0,4,"transport"),
 
   mkSignal("d-055","demo-user-003","woro-marcory-gare-sud","Woro-woro Marcory → Gare Sud","transport_woro",
-    250,"trajet","Marcory","transport_woro","Carrefour ZAC",1,82,6,0,"transport"),
+    250,"trajet","Marcory","gare_routiere","Carrefour ZAC",1,82,6,0,"transport"),
 
   // ══════════════════════════════════════════════════════
   // ABOBO — Quartier populaire

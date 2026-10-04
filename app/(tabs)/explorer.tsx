@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -7,19 +7,26 @@ import {
   ScrollView,
   StyleSheet,
   ActivityIndicator,
-  FlatList,
+  SectionList,
 } from "react-native";
+import { useRouter, useFocusEffect } from "expo-router";
 import { useAppStore } from "@/stores/useAppStore";
 import {
   getPrixAgreges,
   getPrixParPointDeVente,
-  rechercherProduitsSaisis,
-  getSignalementsByProduit,
+  getSignalementsEnAttente,
+  PrixAgregeLocal,
+  PointDeVente,
 } from "@/services/db";
-import { PRODUITS_REF, LABELS_UNITE } from "@/constants/produits";
-import { COMMUNES_ABIDJAN, TYPES_LIEU } from "@/constants/types";
+import {
+  getPrixOfficielsCompares,
+  infoTypeEnseigne,
+  PrixOfficielCompare,
+} from "@/services/enseignes";
+import { SEUIL_CONFIRMATIONS } from "@/services/scoring";
+import { LABELS_UNITE } from "@/constants/produits";
+import { COMMUNES_ABIDJAN, TYPES_LIEU, Signalement } from "@/constants/types";
 import BoutonsValidation from "@/components/BoutonsValidation";
-import { useRouter } from "expo-router";
 
 // ─── Constantes visuelles ─────────────────────────────────
 const VERT       = "#0A5F38";
@@ -82,48 +89,23 @@ const barreStyles = StyleSheet.create({
   barre: { height: "100%", borderRadius: 3 },
 });
 
-// ─── Carte d'un point de vente ────────────────────────────
+// ─── Carte d'un point de vente (prix vérifiés) ────────────
 function CartePointDeVente({
-  signalementId,
-  userIdAuteur,
-  typeLieu,
-  nomLieu,
-  prixMoyen,
-  prixMin,
-  prixMax,
-  unite,
-  nbSignalements,
-  nbConfirmations,
-  nbContestations,
-  derniereMAJ,
-  scoreFilabiliteMoyen,
+  pdv,
   globalMin,
   globalMax,
   rang,
-  produitIdRef,
-  communeRef,
+  onVoirDetail,
 }: {
-  signalementId?: string;
-  userIdAuteur?: string;
-  typeLieu: string;
-  nomLieu: string;
-  prixMoyen: number;
-  prixMin: number;
-  prixMax: number;
-  unite: string;
-  nbSignalements: number;
-  nbConfirmations: number;
-  nbContestations: number;
-  derniereMAJ: string;
-  scoreFilabiliteMoyen: number;
+  pdv: PointDeVente;
   globalMin: number;
   globalMax: number;
   rang: number;
-  produitIdRef?: string;
-  communeRef?: string;
+  onVoirDetail: (signalementId: string) => void;
 }) {
+  const { typeLieu, nomLieu, prixMoyen, prixMin, prixMax, unite } = pdv;
   const isLeMoinsCher = prixMoyen === globalMin;
-  const isPlusCher = prixMoyen === globalMax;
+  const isPlusCher = prixMoyen === globalMax && globalMax !== globalMin;
   const ecartPct = globalMin > 0
     ? Math.round(((prixMoyen - globalMin) / globalMin) * 100)
     : 0;
@@ -141,7 +123,7 @@ function CartePointDeVente({
           <Text style={carteStyles.emoji}>{emojiTypeLieu(typeLieu)}</Text>
           <View style={{ flex: 1 }}>
             <Text style={carteStyles.nomLieu} numberOfLines={1}>
-              {nomLieu !== typeLieu ? nomLieu : labelTypeLieu(typeLieu)}
+              {nomLieu || labelTypeLieu(typeLieu)}
             </Text>
             <Text style={carteStyles.typeLieu}>{labelTypeLieu(typeLieu)}</Text>
           </View>
@@ -179,38 +161,14 @@ function CartePointDeVente({
           </Text>
         )}
         <Text style={carteStyles.meta}>
-          {nbSignalements} signal. · il y a {dateRelative(derniereMAJ)}
+          {pdv.nbSignalements} signal. vérifié{pdv.nbSignalements > 1 ? "s" : ""} · il y a {dateRelative(pdv.derniereMAJ)}
         </Text>
       </View>
 
-      {/* ─── VALIDATION COMMUNAUTAIRE ─────────────────── */}
-      {signalementId && userIdAuteur && (
-        <View style={carteStyles.separateur} />
-      )}
-      {signalementId && userIdAuteur && (
-        <BoutonsValidation
-          signalementId={signalementId}
-          userIdAuteur={userIdAuteur}
-          nbConfirmations={nbConfirmations}
-          nbContestations={nbContestations}
-          scoreFilabilite={scoreFilabiliteMoyen}
-        />
-      )}
-
-      {/* ─── LIEN VERS LE DÉTAIL ──────────────────────── */}
-      {signalementId && (
+      {pdv.signalementId && (
         <TouchableOpacity
           style={carteStyles.detailBtn}
-          onPress={() =>
-            (router as any).push({
-              pathname: "/detail/[id]",
-              params: {
-                id: signalementId,
-                produitId: produitIdRef,
-                commune: communeRef,
-              },
-            })
-          }
+          onPress={() => onVoirDetail(pdv.signalementId!)}
         >
           <Text style={carteStyles.detailBtnText}>
             📈 Voir l'historique et l'évolution du prix →
@@ -220,6 +178,121 @@ function CartePointDeVente({
     </View>
   );
 }
+
+// ─── Carte d'un prix officiel publié par une enseigne ─────
+function CartePrixOfficiel({
+  officiel,
+  onPress,
+}: {
+  officiel: PrixOfficielCompare;
+  onPress: () => void;
+}) {
+  const type = infoTypeEnseigne(officiel.enseigneType);
+  return (
+    <TouchableOpacity style={officielStyles.container} onPress={onPress} activeOpacity={0.7}>
+      <Text style={carteStyles.emoji}>{type.emoji}</Text>
+      <View style={{ flex: 1 }}>
+        <Text style={carteStyles.nomLieu} numberOfLines={1}>{officiel.enseigneNom}</Text>
+        <Text style={carteStyles.typeLieu}>
+          {type.label} · mis à jour il y a {dateRelative(officiel.dateMiseAJour)}
+        </Text>
+      </View>
+      <View style={{ alignItems: "flex-end" }}>
+        <Text style={officielStyles.prix}>
+          {officiel.prix.toLocaleString("fr-FR")} F
+          <Text style={carteStyles.unite}> /{LABELS_UNITE[officiel.unite] ?? officiel.unite}</Text>
+        </Text>
+        <Text style={officielStyles.badge}>✅ Officiel</Text>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+const officielStyles = StyleSheet.create({
+  container: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 10,
+    borderLeftWidth: 4,
+    borderLeftColor: VERT,
+  },
+  prix: { fontSize: 18, fontWeight: "800", color: "#1A1A1A" },
+  badge: { fontSize: 11, color: VERT, fontWeight: "700", marginTop: 2 },
+});
+
+// ─── Carte d'un signalement encore à confirmer ────────────
+function CarteEnAttente({
+  signalement,
+  estLeMien,
+  onVote,
+  onVoirDetail,
+}: {
+  signalement: Signalement;
+  estLeMien: boolean;
+  onVote: () => void;
+  onVoirDetail: () => void;
+}) {
+  const restant = Math.max(0, SEUIL_CONFIRMATIONS - signalement.nbConfirmations);
+  return (
+    <View style={[carteStyles.container, attenteStyles.container]}>
+      <View style={carteStyles.header}>
+        <View style={carteStyles.lieuInfo}>
+          <Text style={carteStyles.emoji}>{emojiTypeLieu(signalement.typeLieu)}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={carteStyles.nomLieu} numberOfLines={1}>
+              {signalement.nomLieu || labelTypeLieu(signalement.typeLieu)}
+            </Text>
+            <Text style={carteStyles.typeLieu}>
+              {labelTypeLieu(signalement.typeLieu)}
+              {signalement.quartier ? ` · ${signalement.quartier}` : ""} · il y a {dateRelative(signalement.dateSignalement)}
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      <View style={carteStyles.prixRow}>
+        <Text style={carteStyles.prix}>
+          {signalement.prix.toLocaleString("fr-FR")} FCFA
+        </Text>
+        <Text style={carteStyles.unite}>/ {LABELS_UNITE[signalement.unite] ?? signalement.unite}</Text>
+      </View>
+
+      <Text style={attenteStyles.progression}>
+        {signalement.nbConfirmations} / {SEUIL_CONFIRMATIONS} confirmations · encore {restant} pour devenir public
+      </Text>
+
+      <View style={carteStyles.separateur} />
+      {estLeMien ? (
+        <Text style={attenteStyles.mien}>
+          C'est ton signalement : il attend la confirmation des autres citoyens.
+        </Text>
+      ) : (
+        <BoutonsValidation
+          signalementId={signalement.id}
+          userIdAuteur={signalement.userId}
+          nbConfirmations={signalement.nbConfirmations}
+          nbContestations={signalement.nbContestations}
+          scoreFilabilite={signalement.scoreFilabilite}
+          onValidationEffectuee={onVote}
+        />
+      )}
+
+      <TouchableOpacity style={carteStyles.detailBtn} onPress={onVoirDetail}>
+        <Text style={carteStyles.detailBtnText}>Voir le détail →</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+const attenteStyles = StyleSheet.create({
+  container: { borderColor: "#F0DDB5", backgroundColor: "#FFFDF7" },
+  progression: { fontSize: 12, color: "#8A5200", fontWeight: "600", marginTop: 6 },
+  mien: { fontSize: 12, color: "#888888", marginTop: 10, lineHeight: 17 },
+});
 
 const carteStyles = StyleSheet.create({
   container: {
@@ -310,39 +383,38 @@ const carteStyles = StyleSheet.create({
 
 // ─── Vue résumé d'un produit dans la liste ────────────────
 function ProduitResume({
-  produitId,
-  produitNom,
-  prixMoyen,
-  prixMin,
-  prixMax,
-  unite,
-  nbSignalements,
+  produit,
   onPress,
 }: {
-  produitId: string;
-  produitNom: string;
-  prixMoyen: number;
-  prixMin: number;
-  prixMax: number;
-  unite: string;
-  nbSignalements: number;
+  produit: PrixAgregeLocal;
   onPress: () => void;
 }) {
-  const ecart = prixMax - prixMin;
-  const alerteEcart = ecart > prixMoyen * 0.3;
+  const { prixMoyen, prixMin, prixMax, unite, nbSignalements, nbEnAttente } = produit;
+  const alerteEcart =
+    prixMoyen !== null && prixMin !== null && prixMax !== null &&
+    prixMax - prixMin > prixMoyen * 0.3;
+
+  const detail = [
+    nbSignalements > 0 ? `${nbSignalements} vérifié${nbSignalements > 1 ? "s" : ""}` : null,
+    nbEnAttente > 0 ? `${nbEnAttente} à confirmer` : null,
+  ].filter(Boolean).join(" · ");
 
   return (
     <TouchableOpacity style={resumeStyles.container} onPress={onPress} activeOpacity={0.7}>
       <View style={resumeStyles.left}>
-        <Text style={resumeStyles.nom} numberOfLines={1}>{produitNom}</Text>
-        <Text style={resumeStyles.nb}>{nbSignalements} signalement{nbSignalements > 1 ? "s" : ""}</Text>
+        <Text style={resumeStyles.nom} numberOfLines={1}>{produit.produitNom}</Text>
+        <Text style={resumeStyles.nb}>{detail}</Text>
       </View>
       <View style={resumeStyles.right}>
-        <Text style={resumeStyles.prix}>
-          {prixMoyen.toLocaleString("fr-FR")} F
-        </Text>
-        <Text style={resumeStyles.unite}>/{LABELS_UNITE[unite] ?? unite}</Text>
-        {alerteEcart && <Text style={resumeStyles.alerte}>⚠</Text>}
+        {prixMoyen !== null ? (
+          <>
+            <Text style={resumeStyles.prix}>{prixMoyen.toLocaleString("fr-FR")} F</Text>
+            <Text style={resumeStyles.unite}>/{LABELS_UNITE[unite] ?? unite}</Text>
+            {alerteEcart && <Text style={resumeStyles.alerte}>⚠</Text>}
+          </>
+        ) : (
+          <Text style={resumeStyles.aConfirmer}>🗳 À confirmer</Text>
+        )}
         <Text style={resumeStyles.chevron}>›</Text>
       </View>
     </TouchableOpacity>
@@ -367,97 +439,142 @@ const resumeStyles = StyleSheet.create({
   prix: { fontSize: 16, fontWeight: "800", color: VERT },
   unite: { fontSize: 12, color: "#888888" },
   alerte: { fontSize: 14, marginLeft: 2 },
+  aConfirmer: { fontSize: 12, fontWeight: "700", color: "#8A5200" },
   chevron: { fontSize: 20, color: "#CCCCCC", marginLeft: 4 },
 });
 
 // ─── ÉCRAN PRINCIPAL ──────────────────────────────────────
 export default function ExplorerScreen() {
-  const { communeSelectionnee, setCommuneSelectionnee } = useAppStore();
+  const { user, communeSelectionnee, setCommuneSelectionnee } = useAppStore();
   const router = useRouter();
 
   // ── Mode : liste de produits OU comparaison d'un produit
-  const [mode, setMode] = useState<"liste" | "comparaison">("liste");
   const [produitSelectionne, setProduitSelectionne] = useState<{
     id: string;
     nom: string;
-    unite: string;
   } | null>(null);
 
   // ── Données liste
-  const [produits, setProduits] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [produits, setProduits] = useState<PrixAgregeLocal[]>([]);
+  const [loading, setLoading] = useState(true);
   const [recherche, setRecherche] = useState("");
   const [categorieFiltre, setCategorieFiltre] = useState<"alimentation" | "transport" | null>(null);
 
   // ── Données comparaison
-  const [pointsDeVente, setPointsDeVente] = useState<any[]>([]);
+  const [pointsDeVente, setPointsDeVente] = useState<PointDeVente[]>([]);
+  const [enAttente, setEnAttente] = useState<Signalement[]>([]);
+  const [officiels, setOfficiels] = useState<PrixOfficielCompare[]>([]);
+  const [officielsIndisponibles, setOfficielsIndisponibles] = useState(false);
   const [loadingComparaison, setLoadingComparaison] = useState(false);
 
   // ─── Charger la liste de produits ─────────────────────
   const chargerProduits = useCallback(async () => {
-    setLoading(true);
     try {
-      const data = await getPrixAgreges(communeSelectionnee);
-      setProduits(data);
+      setProduits(await getPrixAgreges(communeSelectionnee));
     } finally {
       setLoading(false);
     }
   }, [communeSelectionnee]);
 
-  useEffect(() => {
-    chargerProduits();
-  }, [communeSelectionnee]);
-
-  // ─── Ouvrir la comparaison d'un produit ───────────────
-  const ouvrirComparaison = useCallback(
-    async (produitId: string, produitNom: string, unite: string) => {
-      setProduitSelectionne({ id: produitId, nom: produitNom, unite });
-      setMode("comparaison");
-      setLoadingComparaison(true);
-      try {
-        const data = await getPrixParPointDeVente(produitId, communeSelectionnee);
-        setPointsDeVente(data);
-      } finally {
-        setLoadingComparaison(false);
-      }
+  // ─── Charger la comparaison d'un produit ──────────────
+  const chargerComparaison = useCallback(
+    async (produitId: string) => {
+      const [pdv, attente] = await Promise.all([
+        getPrixParPointDeVente(produitId, communeSelectionnee),
+        getSignalementsEnAttente(produitId, communeSelectionnee),
+      ]);
+      setPointsDeVente(pdv);
+      setEnAttente(attente);
     },
     [communeSelectionnee]
   );
 
-  // ─── Filtres liste ─────────────────────────────────────
-  const produitsFiltres = produits.filter((p) => {
-    const produitRef = PRODUITS_REF.find((r) => r.id === p.produitId);
-    const matchCategorie =
-      !categorieFiltre || produitRef?.categorie === categorieFiltre;
-    const matchRecherche =
-      !recherche ||
-      p.produitNom.toLowerCase().includes(recherche.toLowerCase());
-    return matchCategorie && matchRecherche;
-  });
+  // Recharge à chaque retour sur l'onglet et à chaque changement de commune
+  useFocusEffect(
+    useCallback(() => {
+      chargerProduits();
+      if (produitSelectionne) chargerComparaison(produitSelectionne.id);
+    }, [chargerProduits, chargerComparaison, produitSelectionne])
+  );
 
-  const globalMin = pointsDeVente.length
-    ? Math.min(...pointsDeVente.map((p) => p.prixMoyen))
-    : 0;
-  const globalMax = pointsDeVente.length
-    ? Math.max(...pointsDeVente.map((p) => p.prixMoyen))
-    : 0;
-  const economie = globalMax - globalMin;
+  const ouvrirComparaison = async (produitId: string, produitNom: string) => {
+    setProduitSelectionne({ id: produitId, nom: produitNom });
+    setOfficiels([]);
+    setOfficielsIndisponibles(false);
+    setLoadingComparaison(true);
+    try {
+      await chargerComparaison(produitId);
+    } finally {
+      setLoadingComparaison(false);
+    }
+    // Les prix officiels viennent du serveur : affichés dès qu'ils arrivent
+    try {
+      setOfficiels(await getPrixOfficielsCompares(produitId, communeSelectionnee));
+    } catch {
+      setOfficielsIndisponibles(true);
+    }
+  };
+
+  const fermerComparaison = () => {
+    setProduitSelectionne(null);
+    setPointsDeVente([]);
+    setEnAttente([]);
+    setOfficiels([]);
+    chargerProduits();
+  };
+
+  const voirDetail = (signalementId: string) => {
+    if (!produitSelectionne) return;
+    router.push({
+      pathname: "/detail/[id]",
+      params: {
+        id: signalementId,
+        produitId: produitSelectionne.id,
+        commune: communeSelectionnee,
+      },
+    });
+  };
+
+  // ─── Filtres liste, puis séparation alimentation / transport ──
+  const terme = recherche.trim().toLowerCase();
+  const produitsFiltres = produits.filter(
+    (p) =>
+      (!categorieFiltre || p.categorie === categorieFiltre) &&
+      (!terme || p.produitNom.toLowerCase().includes(terme))
+  );
+  const sections = [
+    { titre: "🛒 Alimentation", data: produitsFiltres.filter((p) => p.categorie === "alimentation") },
+    { titre: "🚌 Transport", data: produitsFiltres.filter((p) => p.categorie === "transport") },
+  ].filter((section) => section.data.length > 0);
 
   // ─── RENDER : vue comparaison ─────────────────────────
-  if (mode === "comparaison" && produitSelectionne) {
+  if (produitSelectionne) {
+    const tousLesPrix = [
+      ...pointsDeVente.map((p) => p.prixMoyen),
+      ...officiels.map((o) => o.prix),
+    ];
+    const globalMin = pointsDeVente.length
+      ? Math.min(...pointsDeVente.map((p) => p.prixMoyen))
+      : 0;
+    const globalMax = pointsDeVente.length
+      ? Math.max(...pointsDeVente.map((p) => p.prixMoyen))
+      : 0;
+    const economie = tousLesPrix.length > 1
+      ? Math.max(...tousLesPrix) - Math.min(...tousLesPrix)
+      : 0;
+    const rienAAfficher =
+      pointsDeVente.length === 0 && enAttente.length === 0 && officiels.length === 0;
+
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => { setMode("liste"); setPointsDeVente([]); }}
-            style={styles.backBtn}
-          >
+          <TouchableOpacity onPress={fermerComparaison} style={styles.backBtn}>
             <Text style={styles.backText}>← Retour</Text>
           </TouchableOpacity>
-          <Text style={styles.headerTitle} numberOfLines={1}>
+          <Text style={styles.headerTitle} numberOfLines={2}>
             {produitSelectionne.nom}
           </Text>
-          <Text style={styles.headerSub}>{communeSelectionnee}</Text>
+          <Text style={styles.headerSub}>Comparaison à {communeSelectionnee}</Text>
         </View>
 
         {loadingComparaison ? (
@@ -465,20 +582,16 @@ export default function ExplorerScreen() {
             <ActivityIndicator size="large" color={VERT} />
             <Text style={styles.loadingText}>Comparaison en cours…</Text>
           </View>
-        ) : pointsDeVente.length === 0 ? (
+        ) : rienAAfficher ? (
           <View style={styles.centered}>
             <Text style={styles.emptyEmoji}>🔍</Text>
             <Text style={styles.emptyTitle}>Aucune comparaison disponible</Text>
             <Text style={styles.emptySub}>
-              Sois le premier à signaler ce produit dans plusieurs points de vente à {communeSelectionnee}.
+              Sois le premier à signaler ce produit à {communeSelectionnee}.
             </Text>
           </View>
         ) : (
-          <ScrollView
-            style={styles.scroll}
-            contentContainerStyle={styles.scrollContent}
-          >
-            {/* Bannière économie potentielle */}
+          <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
             {economie > 0 && (
               <View style={styles.economieBanner}>
                 <Text style={styles.economieTitle}>
@@ -490,26 +603,70 @@ export default function ExplorerScreen() {
               </View>
             )}
 
-            <Text style={styles.sectionLabel}>
-              {pointsDeVente.length} point{pointsDeVente.length > 1 ? "s" : ""} de vente comparés
-            </Text>
+            {/* ── Prix officiels des enseignes ─────────── */}
+            {officiels.length > 0 && (
+              <>
+                <Text style={styles.sectionTitre}>✅ Prix officiels des enseignes</Text>
+                {officiels.map((o) => (
+                  <CartePrixOfficiel
+                    key={`${o.enseigneId}-${o.unite}`}
+                    officiel={o}
+                    onPress={() =>
+                      router.push({ pathname: "/enseigne/[id]", params: { id: o.enseigneId } })
+                    }
+                  />
+                ))}
+              </>
+            )}
+            {officielsIndisponibles && (
+              <Text style={styles.sectionLabel}>
+                Prix officiels des enseignes indisponibles hors ligne.
+              </Text>
+            )}
 
-            {pointsDeVente.map((pdv, index) => (
-              <CartePointDeVente
-                key={`${pdv.typeLieu}-${pdv.nomLieu}-${index}`}
-                {...pdv}
-                globalMin={globalMin}
-                globalMax={globalMax}
-                rang={index + 1}
-                produitIdRef={produitSelectionne?.id}
-                communeRef={communeSelectionnee}
-              />
-            ))}
+            {/* ── Prix signalés et vérifiés ────────────── */}
+            {pointsDeVente.length > 0 && (
+              <>
+                <Text style={styles.sectionTitre}>
+                  👥 Prix signalés par les citoyens ({pointsDeVente.length} lieu{pointsDeVente.length > 1 ? "x" : ""})
+                </Text>
+                {pointsDeVente.map((pdv, index) => (
+                  <CartePointDeVente
+                    key={`${pdv.typeLieu}-${pdv.nomLieu}-${pdv.unite}`}
+                    pdv={pdv}
+                    globalMin={globalMin}
+                    globalMax={globalMax}
+                    rang={index + 1}
+                    onVoirDetail={voirDetail}
+                  />
+                ))}
+              </>
+            )}
 
-            {/* Note méthodologique */}
+            {/* ── Signalements à confirmer ─────────────── */}
+            {enAttente.length > 0 && (
+              <>
+                <Text style={styles.sectionTitre}>
+                  🗳 À confirmer ({enAttente.length})
+                </Text>
+                <Text style={styles.sectionLabel}>
+                  Tu as vu ce prix ? Confirme-le. Il compte dans les moyennes après {SEUIL_CONFIRMATIONS} confirmations.
+                </Text>
+                {enAttente.map((s) => (
+                  <CarteEnAttente
+                    key={s.id}
+                    signalement={s}
+                    estLeMien={s.userId === user?.id}
+                    onVote={() => chargerComparaison(produitSelectionne.id)}
+                    onVoirDetail={() => voirDetail(s.id)}
+                  />
+                ))}
+              </>
+            )}
+
             <View style={styles.noteBox}>
               <Text style={styles.noteText}>
-                ℹ Les prix affichés sont des moyennes basées sur les signalements citoyens des 30 derniers jours. Seuls les signalements avec un score de fiabilité ≥ 30 sont pris en compte.
+                ℹ Les prix des citoyens sont des moyennes sur 30 jours, calculées sur les signalements confirmés au moins {SEUIL_CONFIRMATIONS} fois. Les prix officiels sont publiés par les enseignes elles-mêmes.
               </Text>
             </View>
             <View style={{ height: 40 }} />
@@ -547,28 +704,32 @@ export default function ExplorerScreen() {
         ))}
       </ScrollView>
 
-      {/* Filtres catégorie */}
-      <View style={styles.filtreRow}>
-        {(["alimentation", "transport"] as const).map((cat) => (
-          <TouchableOpacity
-            key={cat}
-            style={[styles.filtreBtn, categorieFiltre === cat && styles.filtreBtnActive]}
-            onPress={() => setCategorieFiltre(categorieFiltre === cat ? null : cat)}
-          >
-            <Text style={[styles.filtreBtnText, categorieFiltre === cat && styles.filtreBtnTextActive]}>
-              {cat === "alimentation" ? "🛒 Alim." : "🚌 Transport"}
-            </Text>
-          </TouchableOpacity>
-        ))}
-
-        {/* Barre de recherche */}
+      {/* Recherche par nom de produit */}
+      <View style={styles.rechercheRow}>
         <TextInput
           style={styles.searchInput}
-          placeholder="Rechercher…"
+          placeholder="Rechercher un produit ou un trajet…"
           value={recherche}
           onChangeText={setRecherche}
           placeholderTextColor="#AAAAAA"
+          autoCorrect={false}
+          clearButtonMode="while-editing"
         />
+      </View>
+
+      {/* Filtres catégorie */}
+      <View style={styles.filtreRow}>
+        {([null, "alimentation", "transport"] as const).map((cat) => (
+          <TouchableOpacity
+            key={cat ?? "tout"}
+            style={[styles.filtreBtn, categorieFiltre === cat && styles.filtreBtnActive]}
+            onPress={() => setCategorieFiltre(cat)}
+          >
+            <Text style={[styles.filtreBtnText, categorieFiltre === cat && styles.filtreBtnTextActive]}>
+              {cat === null ? "Tout" : cat === "alimentation" ? "🛒 Alimentation" : "🚌 Transport"}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
       {/* Liste */}
@@ -576,42 +737,36 @@ export default function ExplorerScreen() {
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={VERT} />
         </View>
-      ) : produitsFiltres.length === 0 ? (
+      ) : sections.length === 0 ? (
         <View style={styles.centered}>
           <Text style={styles.emptyEmoji}>📭</Text>
           <Text style={styles.emptyTitle}>
-            Aucun produit signalé à {communeSelectionnee}
+            {terme ? "Aucun résultat" : `Aucun prix signalé à ${communeSelectionnee}`}
           </Text>
           <Text style={styles.emptySub}>
-            {recherche
-              ? `Aucun résultat pour "${recherche}"`
+            {terme
+              ? `Rien ne correspond à « ${recherche.trim()} » dans cette commune.`
               : "Commence par signaler des prix dans cette commune."}
           </Text>
         </View>
       ) : (
-        <FlatList
-          data={produitsFiltres}
+        <SectionList
+          sections={sections}
           keyExtractor={(item) => `${item.produitId}-${item.unite}`}
-          contentContainerStyle={{ padding: 12 }}
+          contentContainerStyle={{ padding: 12, paddingBottom: 40 }}
+          stickySectionHeadersEnabled={false}
+          keyboardShouldPersistTaps="handled"
+          renderSectionHeader={({ section }) => (
+            <Text style={styles.sectionTitre}>
+              {section.titre} · {section.data.length}
+            </Text>
+          )}
           renderItem={({ item }) => (
             <ProduitResume
-              produitId={item.produitId}
-              produitNom={item.produitNom}
-              prixMoyen={item.prixMoyen}
-              prixMin={item.prixMin}
-              prixMax={item.prixMax}
-              unite={item.unite}
-              nbSignalements={item.nbSignalements}
-              onPress={() =>
-                ouvrirComparaison(item.produitId, item.produitNom, item.unite)
-              }
+              produit={item}
+              onPress={() => ouvrirComparaison(item.produitId, item.produitNom)}
             />
           )}
-          ListHeaderComponent={
-            <Text style={styles.sectionLabel}>
-              {produitsFiltres.length} produit{produitsFiltres.length > 1 ? "s" : ""} suivis à {communeSelectionnee}
-            </Text>
-          }
         />
       )}
     </View>
@@ -642,6 +797,18 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: VERT },
   chipText: { fontSize: 12, color: "#555555", fontWeight: "500" },
   chipTextActive: { color: "#FFFFFF", fontWeight: "700" },
+  rechercheRow: {
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    backgroundColor: "#FFFFFF",
+  },
+  sectionTitre: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#1A1A1A",
+    marginTop: 10,
+    marginBottom: 8,
+  },
   filtreRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -662,12 +829,11 @@ const styles = StyleSheet.create({
   filtreBtnText: { fontSize: 12, color: "#555555", fontWeight: "600" },
   filtreBtnTextActive: { color: "#FFFFFF" },
   searchInput: {
-    flex: 1,
     backgroundColor: "#F5F5F5",
     borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    fontSize: 13,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    fontSize: 14,
     color: "#1A1A1A",
   },
   scroll: { flex: 1 },

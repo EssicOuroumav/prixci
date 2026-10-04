@@ -763,6 +763,27 @@ export const PRODUITS_REF: ProduitRef[] = [
   },
 
   // ──────────────────────────────────────────────────────────
+  // TRANSPORT — TRAJETS INTERNES À UNE COMMUNE
+  // ──────────────────────────────────────────────────────────
+  {
+    id: "gbaka-intra-commune",
+    nom: "Gbaka — trajet intra-commune",
+    categorie: "transport",
+    sousCategorie: "transport_gbaka",
+    uniteDefaut: "trajet",
+    unitesDisponibles: ["trajet"],
+    prixReference: 100,
+  },
+  {
+    id: "woro-intra-commune",
+    nom: "Woro-woro — trajet intra-commune",
+    categorie: "transport",
+    sousCategorie: "transport_woro",
+    uniteDefaut: "trajet",
+    unitesDisponibles: ["trajet"],
+    prixReference: 200,
+  },
+  // ──────────────────────────────────────────────────────────
   // TRANSPORT — TAXI COMPTEUR
   // ──────────────────────────────────────────────────────────
   {

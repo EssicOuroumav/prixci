@@ -1,5 +1,6 @@
 import * as SQLite from "expo-sqlite";
 import { Signalement, Validation, UserProfile } from "@/constants/types";
+import { SEUIL_CONFIRMATIONS, SEUILS, DELTA_FIABILITE } from "./scoring";
 
 // ============================================================
 // SERVICE BASE DE DONNÉES LOCALE — SQLite (expo-sqlite v14)
@@ -119,6 +120,17 @@ export async function updateUserScore(
 
 export async function insertSignalement(s: Signalement): Promise<void> {
   const db = await getDb();
+  await insertSignalementBrut(s);
+  // Incrémenter le compteur utilisateur
+  await db.runAsync(
+    "UPDATE users SET nb_signalements = nb_signalements + 1 WHERE id = ?",
+    [s.userId]
+  );
+}
+
+/** Insertion sans toucher au compteur de l'auteur (données venues du serveur). */
+async function insertSignalementBrut(s: Signalement): Promise<void> {
+  const db = await getDb();
   await db.runAsync(
     `INSERT OR REPLACE INTO signalements
       (id, user_id, produit_id, produit_nom, categorie, sous_categorie,
@@ -135,11 +147,22 @@ export async function insertSignalement(s: Signalement): Promise<void> {
       s.synced ? 1 : 0, s.createdAt,
     ]
   );
-  // Incrémenter le compteur utilisateur
-  await db.runAsync(
-    "UPDATE users SET nb_signalements = nb_signalements + 1 WHERE id = ?",
-    [s.userId]
+}
+
+/** Signalements de l'utilisateur, du plus récent au plus ancien. */
+export async function getMesSignalements(
+  userId: string,
+  limit = 30
+): Promise<Signalement[]> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<any>(
+    `SELECT * FROM signalements
+     WHERE user_id = ?
+     ORDER BY date_signalement DESC
+     LIMIT ?`,
+    [userId, limit]
   );
+  return rows.map(rowToSignalement);
 }
 
 export async function getSignalementsByCommune(
@@ -191,13 +214,23 @@ export async function upsertSignalementsFromServer(
 ): Promise<void> {
   const db = await getDb();
   for (const s of signalements) {
-    // Ne pas écraser les signalements locaux non encore syncés
     const existing = await db.getFirstAsync<any>(
       "SELECT synced FROM signalements WHERE id = ?",
       [s.id]
     );
     if (!existing) {
-      await insertSignalement({ ...s, synced: true });
+      await insertSignalementBrut({ ...s, synced: true });
+    } else if (existing.synced === 1) {
+      // Déjà connu du serveur : reprendre les votes des autres utilisateurs.
+      // MAX sur les compteurs pour ne pas perdre un vote local pas encore envoyé.
+      await db.runAsync(
+        `UPDATE signalements SET
+          nb_confirmations = MAX(nb_confirmations, ?),
+          nb_contestations = MAX(nb_contestations, ?),
+          score_fiabilite = ?
+         WHERE id = ?`,
+        [s.nbConfirmations, s.nbContestations, s.scoreFilabilite, s.id]
+      );
     }
   }
 }
@@ -220,24 +253,45 @@ export async function insertValidation(v: Validation): Promise<void> {
     [v.id, v.signalementId, v.userId, v.vote, v.dateVote, v.synced ? 1 : 0]
   );
 
-  // Mettre à jour les compteurs du signalement
-  if (v.vote === "confirme") {
-    await db.runAsync(
-      `UPDATE signalements SET
-        nb_confirmations = nb_confirmations + 1,
-        score_fiabilite = MIN(100, score_fiabilite + 5)
-       WHERE id = ?`,
-      [v.signalementId]
-    );
-  } else {
-    await db.runAsync(
-      `UPDATE signalements SET
-        nb_contestations = nb_contestations + 1,
-        score_fiabilite = MAX(0, score_fiabilite - 8)
-       WHERE id = ?`,
-      [v.signalementId]
-    );
-  }
+  // Mettre à jour les compteurs du signalement (même règle que le serveur)
+  const colonne = v.vote === "confirme" ? "nb_confirmations" : "nb_contestations";
+  await db.runAsync(
+    `UPDATE signalements SET
+      ${colonne} = ${colonne} + 1,
+      score_fiabilite = MAX(0, MIN(100, score_fiabilite + ?))
+     WHERE id = ?`,
+    [DELTA_FIABILITE[v.vote], v.signalementId]
+  );
+}
+
+export async function markValidationsSynced(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const db = await getDb();
+  const marques = ids.map(() => "?").join(",");
+  await db.runAsync(
+    `UPDATE validations SET synced = 1 WHERE id IN (${marques})`,
+    ids
+  );
+}
+
+/**
+ * Rattache les données saisies hors ligne (compte provisoire) au compte
+ * anonyme créé une fois le réseau revenu.
+ */
+export async function reassignerUtilisateur(
+  ancienId: string,
+  nouveauId: string
+): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    "UPDATE signalements SET user_id = ? WHERE user_id = ?",
+    [nouveauId, ancienId]
+  );
+  await db.runAsync(
+    "UPDATE validations SET user_id = ? WHERE user_id = ?",
+    [nouveauId, ancienId]
+  );
+  await db.runAsync("DELETE FROM users WHERE id = ?", [ancienId]);
 }
 
 export async function getUserValidations(userId: string): Promise<string[]> {
@@ -259,33 +313,128 @@ export async function getUnsyncedValidations(): Promise<Validation[]> {
 
 // ─── AGRÉGATION (pour l'écran explorer) ───────────────────
 
-export async function getPrixAgreges(commune: string): Promise<
-  { produitId: string; produitNom: string; prixMoyen: number; prixMin: number; prixMax: number; unite: string; nbSignalements: number; derniereMAJ: string }[]
-> {
+export interface PrixAgregeLocal {
+  produitId: string;
+  produitNom: string;
+  categorie: "alimentation" | "transport";
+  unite: string;
+  /** null tant qu'aucun signalement n'a atteint le seuil de confirmations */
+  prixMoyen: number | null;
+  prixMin: number | null;
+  prixMax: number | null;
+  /** nombre de signalements vérifiés */
+  nbSignalements: number;
+  /** nombre de signalements encore à confirmer */
+  nbEnAttente: number;
+  derniereMAJ: string;
+}
+
+/**
+ * Produits signalés dans une commune sur 30 jours.
+ * Les prix (moyenne, min, max) ne comptent que les signalements vérifiés.
+ */
+export async function getPrixAgreges(commune: string): Promise<PrixAgregeLocal[]> {
   const db = await getDb();
-  // Filtre sur les 30 derniers jours, minimum 1 signalement
   const depuis = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   const rows = await db.getAllAsync<any>(
     `SELECT
       produit_id,
       produit_nom,
+      categorie,
       unite,
-      ROUND(AVG(prix), 0) as prix_moyen,
-      MIN(prix) as prix_min,
-      MAX(prix) as prix_max,
-      COUNT(*) as nb_signalements,
+      ROUND(AVG(CASE WHEN nb_confirmations >= ? THEN prix END), 0) as prix_moyen,
+      MIN(CASE WHEN nb_confirmations >= ? THEN prix END) as prix_min,
+      MAX(CASE WHEN nb_confirmations >= ? THEN prix END) as prix_max,
+      SUM(CASE WHEN nb_confirmations >= ? THEN 1 ELSE 0 END) as nb_verifies,
+      SUM(CASE WHEN nb_confirmations < ? THEN 1 ELSE 0 END) as nb_en_attente,
       MAX(date_signalement) as derniere_maj
     FROM signalements
     WHERE commune = ?
       AND date_signalement > ?
-      AND score_fiabilite >= 30
+      AND score_fiabilite >= ?
     GROUP BY produit_id, unite
-    ORDER BY nb_signalements DESC`,
-    [commune, depuis]
+    ORDER BY nb_verifies DESC, nb_en_attente DESC`,
+    [
+      SEUIL_CONFIRMATIONS, SEUIL_CONFIRMATIONS, SEUIL_CONFIRMATIONS,
+      SEUIL_CONFIRMATIONS, SEUIL_CONFIRMATIONS,
+      commune, depuis, SEUILS.AFFICHAGE_PUBLIC,
+    ]
   );
   return rows.map((r: any) => ({
     produitId: r.produit_id,
     produitNom: r.produit_nom,
+    categorie: r.categorie,
+    unite: r.unite,
+    prixMoyen: r.prix_moyen ?? null,
+    prixMin: r.prix_min ?? null,
+    prixMax: r.prix_max ?? null,
+    nbSignalements: r.nb_verifies ?? 0,
+    nbEnAttente: r.nb_en_attente ?? 0,
+    derniereMAJ: r.derniere_maj,
+  }));
+}
+
+export interface PointDeVente {
+  /** signalement vérifié le plus récent du lieu, pour ouvrir le détail */
+  signalementId?: string;
+  typeLieu: string;
+  nomLieu: string;
+  commune: string;
+  prixMoyen: number;
+  prixMin: number;
+  prixMax: number;
+  unite: string;
+  nbSignalements: number;
+  derniereMAJ: string;
+}
+
+/**
+ * Comparaison d'un produit entre points de vente dans une commune.
+ * Ne compte que les signalements vérifiés (seuil de confirmations atteint).
+ */
+export async function getPrixParPointDeVente(
+  produitId: string,
+  commune: string
+): Promise<PointDeVente[]> {
+  const db = await getDb();
+  const depuis = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const rows = await db.getAllAsync<any>(
+    `SELECT
+      s.type_lieu,
+      s.nom_lieu,
+      s.commune,
+      s.unite,
+      ROUND(AVG(s.prix), 0) as prix_moyen,
+      MIN(s.prix) as prix_min,
+      MAX(s.prix) as prix_max,
+      COUNT(*) as nb_signalements,
+      MAX(s.date_signalement) as derniere_maj,
+      (SELECT s2.id FROM signalements s2
+       WHERE s2.produit_id = s.produit_id
+         AND s2.commune = s.commune
+         AND s2.type_lieu = s.type_lieu
+         AND s2.nom_lieu = s.nom_lieu
+         AND s2.unite = s.unite
+         AND s2.nb_confirmations >= ?
+       ORDER BY s2.date_signalement DESC LIMIT 1) as dernier_signalement_id
+    FROM signalements s
+    WHERE s.produit_id = ?
+      AND s.commune = ?
+      AND s.date_signalement > ?
+      AND s.score_fiabilite >= ?
+      AND s.nb_confirmations >= ?
+    GROUP BY s.type_lieu, s.nom_lieu, s.commune, s.unite
+    ORDER BY prix_moyen ASC`,
+    [
+      SEUIL_CONFIRMATIONS, produitId, commune, depuis,
+      SEUILS.AFFICHAGE_PUBLIC, SEUIL_CONFIRMATIONS,
+    ]
+  );
+  return rows.map((r: any) => ({
+    signalementId: r.dernier_signalement_id ?? undefined,
+    typeLieu: r.type_lieu,
+    nomLieu: r.nom_lieu,
+    commune: r.commune,
     prixMoyen: r.prix_moyen,
     prixMin: r.prix_min,
     prixMax: r.prix_max,
@@ -296,77 +445,28 @@ export async function getPrixAgreges(commune: string): Promise<
 }
 
 /**
- * Comparaison d'un produit entre points de vente dans une commune.
- * C'est la requête centrale de l'écran Explorer.
+ * Signalements d'un produit qui n'ont pas encore atteint le seuil de
+ * confirmations : c'est la file où la communauté vote.
  */
-export async function getPrixParPointDeVente(
+export async function getSignalementsEnAttente(
   produitId: string,
-  commune: string
-): Promise<{
-  typeLieu: string;
-  nomLieu: string;
-  commune: string;
-  prixMoyen: number;
-  prixMin: number;
-  prixMax: number;
-  unite: string;
-  nbSignalements: number;
-  derniereMAJ: string;
-  scoreFilabiliteMoyen: number;
-}[]> {
+  commune: string,
+  limit = 30
+): Promise<Signalement[]> {
   const db = await getDb();
   const depuis = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   const rows = await db.getAllAsync<any>(
-    `SELECT
-      type_lieu,
-      CASE WHEN nom_lieu != '' THEN nom_lieu ELSE type_lieu END as nom_lieu,
-      commune,
-      unite,
-      ROUND(AVG(prix), 0) as prix_moyen,
-      MIN(prix) as prix_min,
-      MAX(prix) as prix_max,
-      COUNT(*) as nb_signalements,
-      SUM(nb_confirmations) as nb_confirmations,
-      SUM(nb_contestations) as nb_contestations,
-      MAX(date_signalement) as derniere_maj,
-      ROUND(AVG(score_fiabilite), 0) as score_fiabilite_moyen,
-      (SELECT id FROM signalements s2
-       WHERE s2.type_lieu = signalements.type_lieu
-         AND s2.produit_id = ?
-         AND s2.commune = ?
-         AND s2.date_signalement > ?
-       ORDER BY s2.date_signalement DESC LIMIT 1) as dernier_signalement_id,
-      (SELECT user_id FROM signalements s3
-       WHERE s3.type_lieu = signalements.type_lieu
-         AND s3.produit_id = ?
-         AND s3.commune = ?
-         AND s3.date_signalement > ?
-       ORDER BY s3.date_signalement DESC LIMIT 1) as dernier_user_id
-    FROM signalements
-    WHERE produit_id = ?
-      AND commune = ?
-      AND date_signalement > ?
-      AND score_fiabilite >= 30
-    GROUP BY type_lieu, nom_lieu, commune, unite
-    ORDER BY prix_moyen ASC`,
-    [produitId, commune, depuis, produitId, commune, depuis, produitId, commune, depuis]
+    `SELECT * FROM signalements
+     WHERE produit_id = ?
+       AND commune = ?
+       AND date_signalement > ?
+       AND score_fiabilite >= ?
+       AND nb_confirmations < ?
+     ORDER BY date_signalement DESC
+     LIMIT ?`,
+    [produitId, commune, depuis, SEUILS.AFFICHAGE_PUBLIC, SEUIL_CONFIRMATIONS, limit]
   );
-  return rows.map((r: any) => ({
-    signalementId: r.dernier_signalement_id ?? undefined,
-    userIdAuteur: r.dernier_user_id ?? undefined,
-    typeLieu: r.type_lieu,
-    nomLieu: r.nom_lieu,
-    commune: r.commune,
-    prixMoyen: r.prix_moyen,
-    prixMin: r.prix_min,
-    prixMax: r.prix_max,
-    unite: r.unite,
-    nbSignalements: r.nb_signalements,
-    nbConfirmations: r.nb_confirmations ?? 0,
-    nbContestations: r.nb_contestations ?? 0,
-    derniereMAJ: r.derniere_maj,
-    scoreFilabiliteMoyen: r.score_fiabilite_moyen,
-  }));
+  return rows.map(rowToSignalement);
 }
 
 /**
@@ -457,7 +557,8 @@ export async function getEvolutionPrix(
     WHERE produit_id = ?
       AND commune = ?
       AND date_signalement > ?
-      AND score_fiabilite >= 30
+      AND score_fiabilite >= ${SEUILS.AFFICHAGE_PUBLIC}
+      AND nb_confirmations >= ${SEUIL_CONFIRMATIONS}
       ${whereTypeLieu}
     GROUP BY jour
     ORDER BY jour ASC`,

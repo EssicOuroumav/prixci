@@ -3,38 +3,35 @@
 // ============================================================
 
 /**
- * Calcule le score de fiabilité d'un signalement
- * basé sur le score de l'auteur et les votes communautaires.
- *
- * Formule :
- * - 40% poids de l'auteur (son score de confiance)
- * - 60% ratio de confirmations communautaires
- * - Minimum 3 votes pour influer significativement
+ * Nombre de confirmations à partir duquel un signalement est « vérifié » :
+ * il entre alors dans les moyennes, les comparaisons et les graphiques.
+ * En dessous, il reste dans la file « À confirmer » où la communauté vote.
  */
-export function calculerScoreSignalement(
-  scoreAuteur: number,      // 0-100
-  nbConfirmations: number,
-  nbContestations: number
+export const SEUIL_CONFIRMATIONS = 10;
+
+export function estVerifie(nbConfirmations: number): boolean {
+  return nbConfirmations >= SEUIL_CONFIRMATIONS;
+}
+
+/**
+ * Score de fiabilité d'un signalement. Règle unique, appliquée à l'identique
+ * par l'application et par le serveur (voir supabase_migration_v2.sql) :
+ * - départ : 60 % du score de confiance de l'auteur
+ * - chaque confirmation : +5
+ * - chaque contestation : -8
+ * - borné entre 0 et 100
+ */
+export const DELTA_FIABILITE = { confirme: 5, conteste: -8 } as const;
+
+export function scoreInitialSignalement(scoreAuteur: number): number {
+  return Math.round(scoreAuteur * 0.6);
+}
+
+export function scoreApresVote(
+  score: number,
+  vote: "confirme" | "conteste"
 ): number {
-  const totalVotes = nbConfirmations + nbContestations;
-
-  if (totalVotes === 0) {
-    // Aucun vote : score basé uniquement sur l'auteur
-    return Math.round(scoreAuteur * 0.6);
-  }
-
-  const ratioConfirmations = nbConfirmations / totalVotes;
-  const poidsAuteur = scoreAuteur / 100;
-
-  // Facteur de confiance qui augmente avec le volume de votes
-  const facteurVolume = Math.min(1, totalVotes / 5);
-
-  const score =
-    poidsAuteur * 0.4 * 100 +
-    ratioConfirmations * 0.6 * 100 * facteurVolume +
-    scoreAuteur * 0.6 * (1 - facteurVolume);
-
-  return Math.round(Math.max(0, Math.min(100, score)));
+  return Math.max(0, Math.min(100, score + DELTA_FIABILITE[vote]));
 }
 
 /**

@@ -16,30 +16,78 @@ import * as Crypto from "expo-crypto";
 import { useRouter } from "expo-router";
 import { useAppStore } from "@/stores/useAppStore";
 import { insertSignalement } from "@/services/db";
-import { Signalement, COMMUNES_ABIDJAN, TYPES_LIEU } from "@/constants/types";
+import { syncAvecStore } from "@/services/sync";
+import { scoreInitialSignalement, SEUIL_CONFIRMATIONS } from "@/services/scoring";
+import { Signalement, COMMUNES_ABIDJAN, TYPES_LIEU, TypeLieu, Unite } from "@/constants/types";
 import {
   PRODUITS_REF,
   LABELS_SOUS_CATEGORIE,
   LABELS_UNITE,
 } from "@/constants/produits";
 
+// Lieux proposés pour un produit alimentaire (les transports partent d'une gare ou d'un arrêt)
+const TYPES_LIEU_ALIMENTATION = TYPES_LIEU.filter((t) => t.id !== "gare_routiere");
+const PRIX_MAX = 500000;
+
+function lirePrix(saisie: string): number {
+  return parseFloat(saisie.replace(/\s/g, "").replace(",", "."));
+}
+
+/**
+ * Position GPS sans jamais bloquer le signalement : dernière position connue,
+ * sinon une mesure limitée à 4 secondes, sinon rien.
+ */
+async function lirePosition(): Promise<{ latitude?: number; longitude?: number }> {
+  try {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== "granted") return {};
+    const connue = await Location.getLastKnownPositionAsync();
+    const position =
+      connue ??
+      (await Promise.race([
+        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 4000)),
+      ]));
+    if (!position) return {};
+    return {
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+    };
+  } catch {
+    return {};
+  }
+}
+
 export default function SignalerScreen() {
   const router = useRouter();
-  const { user, communeSelectionnee } = useAppStore();
+  const { user, setUser, communeSelectionnee } = useAppStore();
 
   const [etape, setEtape] = useState<"produit" | "prix" | "lieu">("produit");
   const [produitSelectionne, setProduitSelectionne] = useState<string | null>(null);
   const [prixSaisi, setPrixSaisi] = useState("");
-  const [uniteSelectionnee, setUniteSelectionnee] = useState<string | null>(null);
+  const [uniteSelectionnee, setUniteSelectionnee] = useState<Unite | null>(null);
   const [communeSelectee, setCommuneSelectee] = useState(communeSelectionnee);
   const [quartier, setQuartier] = useState("");
-  const [typeLieu, setTypeLieu] = useState<string>("marche_traditionnel");
+  const [typeLieu, setTypeLieu] = useState<TypeLieu>("marche_traditionnel");
   const [nomLieu, setNomLieu] = useState("");
   const [recherche, setRecherche] = useState("");
   const [loading, setLoading] = useState(false);
   const [categorieFiltre, setCategorieFiltre] = useState<"alimentation" | "transport" | null>(null);
 
   const produit = PRODUITS_REF.find((p) => p.id === produitSelectionne);
+  const estTransport = produit?.categorie === "transport";
+  const prixNum = lirePrix(prixSaisi);
+
+  const reinitialiser = () => {
+    setEtape("produit");
+    setProduitSelectionne(null);
+    setPrixSaisi("");
+    setUniteSelectionnee(null);
+    setQuartier("");
+    setTypeLieu("marche_traditionnel");
+    setNomLieu("");
+    setRecherche("");
+  };
 
   // ─── Filtrage produits ─────────────────────────────────
   const produitsFiltres = PRODUITS_REF.filter((p) => {
@@ -64,35 +112,26 @@ export default function SignalerScreen() {
   const soumettre = async () => {
     if (!user || !produit || !prixSaisi || !uniteSelectionnee) return;
 
-    const prix = parseFloat(prixSaisi.replace(/\s/g, "").replace(",", "."));
+    const prix = prixNum;
     if (isNaN(prix) || prix <= 0) {
       Alert.alert("Prix invalide", "Entre un prix valide en FCFA.");
       return;
     }
-    if (prix > 500000) {
+    if (prix > PRIX_MAX) {
       Alert.alert("Prix suspect", "Ce prix semble anormalement élevé. Vérifie et réessaie.");
       return;
     }
 
     setLoading(true);
     try {
-      let latitude: number | undefined;
-      let longitude: number | undefined;
-
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === "granted") {
-        const loc = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
-        latitude = loc.coords.latitude;
-        longitude = loc.coords.longitude;
-      }
+      const { latitude, longitude } = await lirePosition();
 
       const id = await Crypto.digestStringAsync(
         Crypto.CryptoDigestAlgorithm.SHA256,
         `${user.id}_${produit.id}_${Date.now()}`
       );
 
+      const maintenant = new Date().toISOString();
       const signalement: Signalement = {
         id: id.substring(0, 36),
         userId: user.id,
@@ -101,27 +140,33 @@ export default function SignalerScreen() {
         categorie: produit.categorie,
         sousCategorie: produit.sousCategorie,
         prix,
-        unite: uniteSelectionnee as any,
+        unite: uniteSelectionnee,
         commune: communeSelectee,
         quartier: quartier.trim(),
-        typeLieu: typeLieu as any,
+        typeLieu: estTransport ? "gare_routiere" : typeLieu,
         nomLieu: nomLieu.trim(),
         latitude,
         longitude,
-        dateSignalement: new Date().toISOString(),
-        scoreFilabilite: Math.round(user.scoreConfiance * 0.6),
+        dateSignalement: maintenant,
+        scoreFilabilite: scoreInitialSignalement(user.scoreConfiance),
         nbConfirmations: 0,
         nbContestations: 0,
         synced: false,
-        createdAt: new Date().toISOString(),
+        createdAt: maintenant,
       };
 
       await insertSignalement(signalement);
+      setUser({ ...user, nbSignalements: user.nbSignalements + 1 });
 
+      // Envoi au serveur sans attendre : rien à faire si le réseau manque
+      syncAvecStore();
+
+      const nomProduit = produit.nom;
+      reinitialiser();
       Alert.alert(
         "Signalement enregistré ✓",
-        `Prix de ${produit.nom} signalé à ${prix.toLocaleString("fr-FR")} FCFA à ${communeSelectee}.\n\nIl sera partagé avec la communauté dès que tu auras du réseau.`,
-        [{ text: "OK", onPress: () => router.push("/(tabs)/") }]
+        `${nomProduit} à ${prix.toLocaleString("fr-FR")} FCFA, ${communeSelectee}.\n\nIl deviendra public après ${SEUIL_CONFIRMATIONS} confirmations d'autres citoyens.`,
+        [{ text: "OK", onPress: () => router.navigate("/(tabs)") }]
       );
     } catch (err) {
       Alert.alert("Erreur", "Impossible d'enregistrer le signalement. Réessaie.");
@@ -135,10 +180,8 @@ export default function SignalerScreen() {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
-            <Text style={styles.headerBack}>← Retour</Text>
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Quel produit ?</Text>
+          <Text style={styles.headerEtape}>Étape 1 sur 3</Text>
+          <Text style={styles.headerTitle}>Quel produit ou trajet ?</Text>
         </View>
 
         <View style={styles.categorieToggle}>
@@ -167,13 +210,14 @@ export default function SignalerScreen() {
 
         <TextInput
           style={styles.searchInput}
-          placeholder="Rechercher un produit…"
+          placeholder="Rechercher un produit ou un trajet…"
           value={recherche}
           onChangeText={setRecherche}
           placeholderTextColor="#AAAAAA"
+          autoCorrect={false}
         />
 
-        <ScrollView style={styles.scroll}>
+        <ScrollView style={styles.scroll} keyboardShouldPersistTaps="handled">
           {Object.entries(groupes).map(([souscat, items]) => (
             <View key={souscat}>
               <Text style={styles.sousCategLabel}>
@@ -220,7 +264,11 @@ export default function SignalerScreen() {
           <Text style={styles.headerTitle}>Prix observé</Text>
         </View>
 
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.etapeContent}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.etapeContent}
+          keyboardShouldPersistTaps="handled"
+        >
           <Text style={styles.produitChoisi}>{produit?.nom}</Text>
 
           {produit?.prixReference && (
@@ -270,9 +318,9 @@ export default function SignalerScreen() {
           </View>
 
           <TouchableOpacity
-            style={[styles.nextBtn, !prixSaisi && styles.nextBtnDisabled]}
-            onPress={() => prixSaisi && setEtape("lieu")}
-            disabled={!prixSaisi}
+            style={[styles.nextBtn, !(prixNum > 0) && styles.nextBtnDisabled]}
+            onPress={() => setEtape("lieu")}
+            disabled={!(prixNum > 0)}
           >
             <Text style={styles.nextBtnText}>Suivant →</Text>
           </TouchableOpacity>
@@ -294,61 +342,85 @@ export default function SignalerScreen() {
         <Text style={styles.headerTitle}>Où as-tu vu ce prix ?</Text>
       </View>
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.etapeContent}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.etapeContent}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.recapBox}>
           <Text style={styles.recapText}>
-            {produit?.nom} · {parseFloat(prixSaisi || "0").toLocaleString("fr-FR")} FCFA
+            {produit?.nom} · {(prixNum || 0).toLocaleString("fr-FR")} FCFA
             /{LABELS_UNITE[uniteSelectionnee ?? ""] ?? uniteSelectionnee}
           </Text>
         </View>
 
-        {/* Type de lieu */}
-        <Text style={styles.label}>Type de point de vente</Text>
+        {/* Commune */}
+        <Text style={styles.label}>Commune</Text>
         <View style={styles.typeLieuGrid}>
-          {TYPES_LIEU.map((t) => (
+          {COMMUNES_ABIDJAN.map((c) => (
             <TouchableOpacity
-              key={t.id}
-              style={[styles.typeLieuItem, typeLieu === t.id && styles.typeLieuItemActive]}
-              onPress={() => setTypeLieu(t.id)}
+              key={c}
+              style={[styles.communeChip, communeSelectee === c && styles.communeChipActive]}
+              onPress={() => setCommuneSelectee(c)}
             >
-              <Text style={styles.typeLieuEmoji}>{t.emoji}</Text>
-              <Text style={[styles.typeLieuLabel, typeLieu === t.id && styles.typeLieuLabelActive]}>
-                {t.label}
+              <Text style={[styles.communeChipText, communeSelectee === c && styles.communeChipTextActive]}>
+                {c}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        {/* Nom du lieu */}
-        <Text style={styles.label}>Nom du lieu (optionnel)</Text>
+        {/* Quartier */}
+        <Text style={styles.label}>Quartier (optionnel)</Text>
         <TextInput
-          style={styles.searchInput}
-          placeholder="Ex: Marché Siporex, Sococé Yopougon…"
+          style={styles.champ}
+          placeholder="Ex: Siporex, Angré, Zone 4…"
+          value={quartier}
+          onChangeText={setQuartier}
+          placeholderTextColor="#AAAAAA"
+          maxLength={60}
+        />
+
+        {/* Type de lieu : sans objet pour un trajet */}
+        {!estTransport && (
+          <>
+            <Text style={styles.label}>Type de point de vente</Text>
+            <View style={styles.typeLieuGrid}>
+              {TYPES_LIEU_ALIMENTATION.map((t) => (
+                <TouchableOpacity
+                  key={t.id}
+                  style={[styles.typeLieuItem, typeLieu === t.id && styles.typeLieuItemActive]}
+                  onPress={() => setTypeLieu(t.id)}
+                >
+                  <Text style={styles.typeLieuEmoji}>{t.emoji}</Text>
+                  <Text style={[styles.typeLieuLabel, typeLieu === t.id && styles.typeLieuLabelActive]}>
+                    {t.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </>
+        )}
+
+        {/* Nom du lieu */}
+        <Text style={styles.label}>
+          {estTransport ? "Gare ou arrêt de départ (optionnel)" : "Nom du lieu (optionnel)"}
+        </Text>
+        <TextInput
+          style={styles.champ}
+          placeholder={
+            estTransport
+              ? "Ex: Terminus Selmer, Carrefour Attoban…"
+              : "Ex: Marché Siporex, Sococé Yopougon…"
+          }
           value={nomLieu}
           onChangeText={setNomLieu}
           placeholderTextColor="#AAAAAA"
+          maxLength={80}
         />
         <Text style={styles.fieldHint}>
           Plus tu es précis, plus les citoyens peuvent trouver le bon endroit.
         </Text>
-
-        {/* Commune */}
-        <Text style={styles.label}>Commune</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
-          <View style={styles.communeRow}>
-            {COMMUNES_ABIDJAN.map((c) => (
-              <TouchableOpacity
-                key={c}
-                style={[styles.communeChip, communeSelectee === c && styles.communeChipActive]}
-                onPress={() => setCommuneSelectee(c)}
-              >
-                <Text style={[styles.communeChipText, communeSelectee === c && styles.communeChipTextActive]}>
-                  {c}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </ScrollView>
 
         <TouchableOpacity
           style={[styles.submitBtn, loading && styles.nextBtnDisabled]}
@@ -363,7 +435,7 @@ export default function SignalerScreen() {
         </TouchableOpacity>
 
         <Text style={styles.disclaimer}>
-          Ton signalement est anonyme. Il sera visible par la communauté après vérification.
+          Ton signalement est anonyme. Il devient public après {SEUIL_CONFIRMATIONS} confirmations d'autres citoyens.
         </Text>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -382,6 +454,17 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   headerBack: { color: "rgba(255,255,255,0.8)", fontSize: 14 },
+  headerEtape: { color: "rgba(255,255,255,0.8)", fontSize: 12 },
+  champ: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 14,
+    color: "#1A1A1A",
+    borderWidth: 1,
+    borderColor: "#E8E8E8",
+    marginBottom: 12,
+  },
   headerTitle: { color: "#FFFFFF", fontSize: 20, fontWeight: "800" },
   scroll: { flex: 1 },
   etapeContent: { padding: 20, gap: 8 },
@@ -496,7 +579,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   recapText: { fontSize: 15, color: VERT, fontWeight: "600" },
-  communeRow: { flexDirection: "row", gap: 8, paddingHorizontal: 0 },
   communeChip: {
     paddingHorizontal: 14,
     paddingVertical: 6,
@@ -548,7 +630,7 @@ const styles = StyleSheet.create({
   fieldHint: {
     fontSize: 11,
     color: "#AAAAAA",
-    marginBottom: 16,
-    marginTop: -8,
+    marginBottom: 8,
+    marginTop: -6,
   },
 });

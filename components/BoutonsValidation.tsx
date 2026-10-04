@@ -12,7 +12,12 @@ import * as Crypto from "expo-crypto";
 import { Validation } from "@/constants/types";
 import { insertValidation } from "@/services/db";
 import { updateUserScore } from "@/services/db";
-import { deltaScoreApresValidation, DELTA_SCORE_POUR_VALIDATION_DONNEE } from "@/services/scoring";
+import {
+  deltaScoreApresValidation,
+  scoreApresVote,
+  DELTA_SCORE_POUR_VALIDATION_DONNEE,
+} from "@/services/scoring";
+import { syncAvecStore } from "@/services/sync";
 import { useAppStore } from "@/stores/useAppStore";
 
 // ============================================================
@@ -82,15 +87,10 @@ export default function BoutonsValidation({
       await insertValidation(validation);
 
       // Mise à jour optimiste de l'UI
-      if (vote === "confirme") {
-        setNbConf((n) => n + 1);
-        const nouveauScore = Math.min(100, score + 5);
-        setScore(nouveauScore);
-      } else {
-        setNbCont((n) => n + 1);
-        const nouveauScore = Math.max(0, score - 8);
-        setScore(nouveauScore);
-      }
+      if (vote === "confirme") setNbConf((n) => n + 1);
+      else setNbCont((n) => n + 1);
+      const nouveauScore = scoreApresVote(score, vote);
+      setScore(nouveauScore);
 
       setVoteLocal(vote);
       addValidation(signalementId);
@@ -103,7 +103,10 @@ export default function BoutonsValidation({
       await updateUserScore(user.id, DELTA_SCORE_POUR_VALIDATION_DONNEE);
       updateStoreScore(DELTA_SCORE_POUR_VALIDATION_DONNEE);
 
-      onValidationEffectuee?.(vote, score);
+      // Envoi au serveur sans attendre
+      syncAvecStore();
+
+      onValidationEffectuee?.(vote, nouveauScore);
     } catch (err: any) {
       if (err.message?.includes("déjà voté")) {
         Alert.alert("Vote déjà enregistré", "Tu as déjà voté sur ce signalement.");
@@ -123,13 +126,17 @@ export default function BoutonsValidation({
         <View style={styles.dejaVoteContainer}>
           <View style={[
             styles.dejaVoteBadge,
-            { backgroundColor: voteLocal === "confirme" ? "#E8F5EE" : "#FDECEA" }
+            { backgroundColor: voteLocal === "conteste" ? "#FDECEA" : "#E8F5EE" }
           ]}>
             <Text style={[
               styles.dejaVoteText,
-              { color: voteLocal === "confirme" ? "#0A5F38" : "#C0392B" }
+              { color: voteLocal === "conteste" ? "#C0392B" : "#0A5F38" }
             ]}>
-              {voteLocal === "confirme" ? "✓ Tu as confirmé ce prix" : "✗ Tu as contesté ce prix"}
+              {voteLocal === "confirme"
+                ? "✓ Tu as confirmé ce prix"
+                : voteLocal === "conteste"
+                ? "✗ Tu as contesté ce prix"
+                : "✓ Tu as déjà voté sur ce prix"}
             </Text>
           </View>
           <BarreConsensus conf={nbConf} cont={nbCont} />

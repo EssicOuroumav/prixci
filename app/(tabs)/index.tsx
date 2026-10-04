@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -8,15 +8,17 @@ import {
   RefreshControl,
   ActivityIndicator,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { useAppStore } from "@/stores/useAppStore";
 import { getPrixAgreges } from "@/services/db";
-import { syncIfOnline } from "@/services/sync";
-import { COMMUNES_ABIDJAN } from "@/constants/types";
-import { LABELS_UNITE } from "@/constants/produits";
+import { syncAvecStore } from "@/services/sync";
+import { COMMUNES_ABIDJAN, Unite } from "@/constants/types";
+import { LABELS_UNITE, getProduitById } from "@/constants/produits";
+import { SEUIL_CONFIRMATIONS } from "@/services/scoring";
 
 // ─── Composant carte prix ──────────────────────────────────
 function PrixCard({
+  produitId,
   produitNom,
   prixMoyen,
   prixMin,
@@ -25,6 +27,7 @@ function PrixCard({
   nbSignalements,
   derniereMAJ,
 }: {
+  produitId: string;
   produitNom: string;
   prixMoyen: number;
   prixMin: number;
@@ -35,6 +38,13 @@ function PrixCard({
 }) {
   const ecart = prixMax - prixMin;
   const alerteEcart = ecart > prixMoyen * 0.3; // alerte si écart > 30%
+
+  // Comparaison au prix de référence OCPV, seulement dans la même unité
+  const ref = getProduitById(produitId);
+  const ecartRef =
+    ref?.prixReference && ref.uniteDefaut === unite
+      ? Math.round(((prixMoyen - ref.prixReference) / ref.prixReference) * 100)
+      : null;
 
   const dateRelative = () => {
     const diff = Date.now() - new Date(derniereMAJ).getTime();
@@ -63,6 +73,12 @@ function PrixCard({
         </Text>
         <Text style={styles.prixUnite}>/ {LABELS_UNITE[unite] ?? unite}</Text>
       </View>
+      {ecartRef !== null && Math.abs(ecartRef) >= 10 && (
+        <Text style={[styles.refText, { color: ecartRef > 0 ? "#C0392B" : VERT }]}>
+          {ecartRef > 0 ? "↑" : "↓"} {Math.abs(ecartRef)}% par rapport au prix de référence
+          ({ref!.prixReference!.toLocaleString("fr-FR")} FCFA)
+        </Text>
+      )}
       <View style={styles.cardFooter}>
         <Text style={styles.cardMeta}>
           {prixMin.toLocaleString("fr-FR")} – {prixMax.toLocaleString("fr-FR")} FCFA
@@ -79,14 +95,11 @@ function PrixCard({
 export default function HomeScreen() {
   const router = useRouter();
   const {
-    user,
     communeSelectionnee,
     setCommuneSelectionnee,
     prixAgreges,
     setPrixAgreges,
     syncStatus,
-    setSyncStatus,
-    setLastSyncAt,
     isInitialized,
   } = useAppStore();
 
@@ -98,16 +111,9 @@ export default function HomeScreen() {
       const data = await getPrixAgreges(communeSelectionnee);
       setPrixAgreges(
         data.map((d) => ({
-          produitId: d.produitId,
-          produitNom: d.produitNom,
+          ...d,
           commune: communeSelectionnee,
-          prixMoyen: d.prixMoyen,
-          prixMin: d.prixMin,
-          prixMax: d.prixMax,
-          unite: d.unite as any,
-          nbSignalements: d.nbSignalements,
-          derniereMAJ: d.derniereMAJ,
-          tendance: "stable",
+          unite: d.unite as Unite,
         }))
       );
     } finally {
@@ -116,26 +122,33 @@ export default function HomeScreen() {
     }
   }, [communeSelectionnee]);
 
-  useEffect(() => {
-    if (isInitialized) {
-      setLoading(true);
-      chargerDonnees();
-    }
-  }, [communeSelectionnee, isInitialized]);
+  // Recharge à chaque retour sur l'onglet (après un signalement ou un vote)
+  useFocusEffect(
+    useCallback(() => {
+      if (isInitialized) chargerDonnees();
+    }, [chargerDonnees, isInitialized])
+  );
+
+  // La fin d'une synchronisation peut apporter de nouveaux prix
+  React.useEffect(() => {
+    if (isInitialized && syncStatus === "success") chargerDonnees();
+  }, [syncStatus]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await syncIfOnline(communeSelectionnee, (status) => {
-      setSyncStatus(status);
-      if (status === "success") setLastSyncAt(new Date().toISOString());
-    });
+    await syncAvecStore();
     await chargerDonnees();
-  }, [communeSelectionnee]);
+  }, [chargerDonnees]);
+
+  // Seuls les prix vérifiés par la communauté sont affichés ici
+  const prixVerifies = prixAgreges.filter((p) => p.prixMoyen !== null);
+  const nbEnAttente = prixAgreges.reduce((n, p) => n + p.nbEnAttente, 0);
 
   const syncIndicator = () => {
     if (syncStatus === "syncing") return "🔄 Synchronisation…";
     if (syncStatus === "offline") return "📵 Hors ligne";
     if (syncStatus === "success") return "✓ Synchronisé";
+    if (syncStatus === "error") return "⚠ Synchronisation incomplète";
     return null;
   };
 
@@ -199,14 +212,30 @@ export default function HomeScreen() {
             />
           }
         >
-          {prixAgreges.length === 0 ? (
+          {nbEnAttente > 0 && (
+            <TouchableOpacity
+              style={styles.attenteBanner}
+              onPress={() => router.push("/(tabs)/explorer")}
+            >
+              <Text style={styles.attenteTitle}>
+                🗳 {nbEnAttente} prix à confirmer à {communeSelectionnee}
+              </Text>
+              <Text style={styles.attenteSub}>
+                Un prix devient public après {SEUIL_CONFIRMATIONS} confirmations. Vote dans Explorer →
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          {prixVerifies.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyEmoji}>📊</Text>
               <Text style={styles.emptyTitle}>
-                Aucun prix disponible à {communeSelectionnee}
+                Aucun prix vérifié à {communeSelectionnee}
               </Text>
               <Text style={styles.emptySubtitle}>
-                Sois le premier à signaler un prix dans cette commune !
+                {nbEnAttente > 0
+                  ? "Des prix attendent ta confirmation dans Explorer."
+                  : "Sois le premier à signaler un prix dans cette commune !"}
               </Text>
               <TouchableOpacity
                 style={styles.ctaButton}
@@ -218,10 +247,20 @@ export default function HomeScreen() {
           ) : (
             <>
               <Text style={styles.sectionTitle}>
-                {prixAgreges.length} produits suivis à {communeSelectionnee}
+                {prixVerifies.length} produit{prixVerifies.length > 1 ? "s" : ""} vérifié{prixVerifies.length > 1 ? "s" : ""} à {communeSelectionnee}
               </Text>
-              {prixAgreges.map((prix) => (
-                <PrixCard key={`${prix.produitId}-${prix.unite}`} {...prix} />
+              {prixVerifies.map((prix) => (
+                <PrixCard
+                  key={`${prix.produitId}-${prix.unite}`}
+                  produitId={prix.produitId}
+                  produitNom={prix.produitNom}
+                  prixMoyen={prix.prixMoyen ?? 0}
+                  prixMin={prix.prixMin ?? 0}
+                  prixMax={prix.prixMax ?? 0}
+                  unite={prix.unite}
+                  nbSignalements={prix.nbSignalements}
+                  derniereMAJ={prix.derniereMAJ}
+                />
               ))}
               <View style={styles.bottomPadding} />
             </>
@@ -245,6 +284,17 @@ const VERT_CLAIR = "#E8F5EE";
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F5F7F5" },
+  refText: { fontSize: 12, fontWeight: "600", marginTop: 4 },
+  attenteBanner: {
+    backgroundColor: "#FFF8E6",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: "#D4820A",
+  },
+  attenteTitle: { fontSize: 14, fontWeight: "700", color: "#8A5200" },
+  attenteSub: { fontSize: 12, color: "#8A5200", marginTop: 2, lineHeight: 16 },
   header: {
     backgroundColor: VERT,
     paddingTop: 56,

@@ -2,7 +2,7 @@ import "react-native-url-polyfill/auto";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { UserProfile } from "@/constants/types";
-import { saveUser, getUser } from "./db";
+import { saveUser, getUser, reassignerUtilisateur } from "./db";
 import * as Crypto from "expo-crypto";
 
 // ============================================================
@@ -11,6 +11,7 @@ import * as Crypto from "expo-crypto";
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? "";
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "";
+const CLE_USER_HORS_LIGNE = "prixci_offline_user_id";
 
 export const supabase: SupabaseClient = createClient(
   SUPABASE_URL,
@@ -55,29 +56,50 @@ export async function getOrCreateAnonymousUser(): Promise<UserProfile> {
   const existingUser = await getUser(userId);
   if (existingUser) return existingUser;
 
-  // 3. Créer le profil
-  const pseudonyme = generatePseudonyme();
+  // 3. Créer le profil. Si un compte provisoire a été créé hors ligne,
+  //    on reprend son pseudonyme et on lui rattache ce qu'il a saisi.
+  const offlineId = await AsyncStorage.getItem(CLE_USER_HORS_LIGNE);
+  const offlineUser = offlineId ? await getUser(offlineId) : null;
+
   const user: UserProfile = {
     id: userId,
-    pseudonyme,
+    pseudonyme: offlineUser?.pseudonyme ?? generatePseudonyme(),
     scoreConfiance: 50,
-    nbSignalements: 0,
+    nbSignalements: offlineUser?.nbSignalements ?? 0,
     nbValidationsRecues: 0,
-    dateCreation: new Date().toISOString(),
+    dateCreation: offlineUser?.dateCreation ?? new Date().toISOString(),
   };
 
   await saveUser(user);
+  if (offlineId) {
+    await reassignerUtilisateur(offlineId, userId);
+    await AsyncStorage.removeItem(CLE_USER_HORS_LIGNE);
+  }
 
-  // Sync du profil vers Supabase
-  await supabase.from("users").upsert({
-    id: user.id,
-    pseudonyme: user.pseudonyme,
-    score_confiance: user.scoreConfiance,
-    nb_signalements: user.nbSignalements,
-    date_creation: user.dateCreation,
-  });
-
+  await pushUserProfile(user);
   return user;
+}
+
+/**
+ * Crée le profil côté serveur s'il n'existe pas encore.
+ * Le score et les compteurs sont fixés par le serveur, jamais par l'application.
+ */
+export async function pushUserProfile(user: UserProfile): Promise<void> {
+  const { error } = await supabase.from("users").upsert(
+    {
+      id: user.id,
+      pseudonyme: user.pseudonyme,
+      date_creation: user.dateCreation,
+    },
+    { onConflict: "id", ignoreDuplicates: true }
+  );
+  if (error) console.warn("[Auth] Profil non envoyé :", error.message);
+}
+
+/** Identifiant du compte Supabase courant, ou null si hors ligne / sans session. */
+export async function getSessionUserId(): Promise<string | null> {
+  const { data } = await supabase.auth.getSession();
+  return data?.session?.user?.id ?? null;
 }
 
 /**
@@ -85,7 +107,7 @@ export async function getOrCreateAnonymousUser(): Promise<UserProfile> {
  */
 async function createOfflineUser(): Promise<UserProfile> {
   // Vérifier si un utilisateur offline existe déjà
-  const offlineId = await AsyncStorage.getItem("prixci_offline_user_id");
+  const offlineId = await AsyncStorage.getItem(CLE_USER_HORS_LIGNE);
   if (offlineId) {
     const existing = await getUser(offlineId);
     if (existing) return existing;
@@ -106,7 +128,7 @@ async function createOfflineUser(): Promise<UserProfile> {
   };
 
   await saveUser(user);
-  await AsyncStorage.setItem("prixci_offline_user_id", user.id);
+  await AsyncStorage.setItem(CLE_USER_HORS_LIGNE, user.id);
   return user;
 }
 
@@ -132,5 +154,5 @@ function generatePseudonyme(): string {
 // ─── Déconnexion ──────────────────────────────────────────
 export async function signOut(): Promise<void> {
   await supabase.auth.signOut();
-  await AsyncStorage.removeItem("prixci_offline_user_id");
+  await AsyncStorage.removeItem(CLE_USER_HORS_LIGNE);
 }
