@@ -168,7 +168,7 @@ Vues serveur : `prix_agreges` (moyennes sur 30 jours) et `comparaison_par_lieu` 
 
 | Domaine | Exigence |
 |---|---|
-| Technologie | Expo SDK 54, React Native, TypeScript, expo-router, Zustand, SQLite local, Supabase |
+| Technologie | Expo SDK 57, React Native, TypeScript, expo-router, Zustand, SQLite local, Supabase |
 | Hors ligne | Aucune fonction de base ne doit dépendre du réseau |
 | Performance | Démarrage en moins de 3 secondes sur un téléphone Android d'entrée de gamme ; application légère en données mobiles |
 | Sécurité | Droits d'accès par ligne sur toutes les tables ; un utilisateur n'écrit que ses propres données |

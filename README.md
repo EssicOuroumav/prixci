@@ -8,7 +8,7 @@ App citoyenne offline-first permettant aux habitants d'Abidjan de signaler et co
 ## Stack technique
 | Couche | Technologie |
 |---|---|
-| Framework | Expo SDK 54 + React Native + TypeScript |
+| Framework | Expo SDK 57 + React Native + TypeScript |
 | Navigation | Expo Router (file-based) |
 | Stockage local | expo-sqlite (SQLite natif) |
 | Auth anonyme | Supabase Anonymous Auth |

@@ -7,11 +7,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   orientation: "portrait",
   icon: "./assets/icon.png",
   userInterfaceStyle: "light",
-  splash: {
-    image: "./assets/splash-icon.png",
-    resizeMode: "contain",
-    backgroundColor: "#0A5F38",
-  },
   ios: {
     supportsTablet: false,
     bundleIdentifier: "ci.prixci.app",
@@ -30,6 +25,17 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   plugins: [
     "expo-router",
+    "expo-sqlite",
+    "expo-status-bar",
+    [
+      "expo-splash-screen",
+      {
+        image: "./assets/splash-icon.png",
+        imageWidth: 220,
+        resizeMode: "contain",
+        backgroundColor: "#0A5F38",
+      },
+    ],
     [
       "expo-location",
       {

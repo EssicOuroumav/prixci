@@ -1,7 +1,7 @@
 # PrixCI — Contexte
 
 ## Stack technique
-- React Native + Expo SDK 54, expo-router (routes par fichiers), TypeScript
+- React Native + Expo SDK 57, expo-router (routes par fichiers), TypeScript
 - Supabase : auth anonyme, Postgres, droits d'accès par ligne
 - expo-sqlite : stockage local, source de l'affichage (hors ligne d'abord)
 - Zustand : état global
