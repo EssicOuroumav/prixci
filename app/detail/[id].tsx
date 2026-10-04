@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Dimensions,
+  Alert,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
@@ -17,7 +18,14 @@ import {
 } from "@/services/db";
 import { TYPES_LIEU } from "@/constants/types";
 import { LABELS_UNITE } from "@/constants/produits";
-import { labelScoreFilabilite, labelScoreUser } from "@/services/scoring";
+import {
+  labelScoreFilabilite,
+  labelScoreUser,
+  estVerifie,
+  SEUIL_CONFIRMATIONS,
+} from "@/services/scoring";
+import { MOTIFS_ABUS, signalerAbus } from "@/services/abus";
+import { useAppStore } from "@/stores/useAppStore";
 import BoutonsValidation from "@/components/BoutonsValidation";
 import { Signalement } from "@/constants/types";
 
@@ -507,6 +515,7 @@ export default function DetailScreen() {
     commune: string;
   }>();
   const router = useRouter();
+  const { user } = useAppStore();
 
   const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState<{
@@ -519,17 +528,21 @@ export default function DetailScreen() {
   const [historique, setHistorique] = useState<any[]>([]);
   const [onglet, setOnglet] = useState<"evolution" | "votes" | "historique">("evolution");
 
+  // Le rechargement après un vote ne doit pas réafficher l'écran de chargement
   const charger = useCallback(async () => {
     if (!id) return;
-    setLoading(true);
     try {
-      const [det, evo, vals, histo] = await Promise.all([
-        getSignalementDetail(id),
-        getEvolutionPrix(produitId ?? "", commune ?? ""),
-        getValidationsDetail(id),
-        getHistoriqueSignalements(produitId ?? "", commune ?? ""),
-      ]);
+      const det = await getSignalementDetail(id);
       setDetail(det);
+      if (!det) return;
+      // Le signalement fait foi : les paramètres de la route peuvent manquer
+      const pid = det.signalement.produitId || produitId || "";
+      const com = det.signalement.commune || commune || "";
+      const [evo, vals, histo] = await Promise.all([
+        getEvolutionPrix(pid, com),
+        getValidationsDetail(id),
+        getHistoriqueSignalements(pid, com),
+      ]);
       setEvolution(evo);
       setValidations(vals);
       setHistorique(histo);
@@ -539,6 +552,22 @@ export default function DetailScreen() {
   }, [id, produitId, commune]);
 
   useEffect(() => { charger(); }, [charger]);
+
+  const envoyerAbus = async (motif: string) => {
+    if (!id) return;
+    try {
+      await signalerAbus("signalement", id, motif);
+      Alert.alert("Merci", "Ce contenu a été transmis à l'équipe de modération.");
+    } catch {
+      Alert.alert("Hors ligne", "Connexion nécessaire pour signaler un abus. Réessaie plus tard.");
+    }
+  };
+
+  const demanderMotifAbus = () =>
+    Alert.alert("Signaler un abus", "Quel est le problème ?", [
+      ...MOTIFS_ABUS.map((motif) => ({ text: motif, onPress: () => envoyerAbus(motif) })),
+      { text: "Annuler", style: "cancel" as const },
+    ]);
 
   if (loading) {
     return (
@@ -562,6 +591,8 @@ export default function DetailScreen() {
   }
 
   const { signalement, auteurPseudonyme, auteurScore } = detail;
+  const verifie = estVerifie(signalement.nbConfirmations);
+  const estLeMien = signalement.userId === user?.id;
   const scoreInfo = labelScoreFilabilite(signalement.scoreFilabilite);
   const badgeAuteur = labelScoreUser(auteurScore);
   const totalVotes = signalement.nbConfirmations + signalement.nbContestations;
@@ -589,6 +620,19 @@ export default function DetailScreen() {
       >
         {/* ── Hero prix ──────────────────────────────────── */}
         <View style={styles.heroCard}>
+          <Text style={styles.heroProduit}>{signalement.produitNom}</Text>
+          <View
+            style={[
+              styles.statutBadge,
+              { backgroundColor: verifie ? "#E8F5EE" : "#FFF3CD" },
+            ]}
+          >
+            <Text style={[styles.statutText, { color: verifie ? VERT : "#8A5200" }]}>
+              {verifie
+                ? "✓ Prix vérifié par la communauté"
+                : `🗳 À confirmer · ${signalement.nbConfirmations} / ${SEUIL_CONFIRMATIONS} confirmations`}
+            </Text>
+          </View>
           <View style={styles.heroRow}>
             <View>
               <Text style={styles.heroPrix}>
@@ -617,6 +661,7 @@ export default function DetailScreen() {
               </Text>
               <Text style={styles.lieuHeroType}>
                 {labelTypeLieu(signalement.typeLieu)} · {signalement.commune}
+                {signalement.quartier ? ` · ${signalement.quartier}` : ""}
               </Text>
             </View>
           </View>
@@ -661,14 +706,22 @@ export default function DetailScreen() {
 
         {/* ── Boutons validation ─────────────────────────── */}
         <View style={styles.section}>
-          <BoutonsValidation
-            signalementId={signalement.id}
-            userIdAuteur={signalement.userId}
-            nbConfirmations={signalement.nbConfirmations}
-            nbContestations={signalement.nbContestations}
-            scoreFilabilite={signalement.scoreFilabilite}
-            onValidationEffectuee={() => charger()}
-          />
+          {estLeMien ? (
+            <View style={styles.mienBox}>
+              <Text style={styles.mienText}>
+                C'est ton signalement. Ce sont les autres citoyens qui le confirment ou le contestent.
+              </Text>
+            </View>
+          ) : (
+            <BoutonsValidation
+              signalementId={signalement.id}
+              userIdAuteur={signalement.userId}
+              nbConfirmations={signalement.nbConfirmations}
+              nbContestations={signalement.nbContestations}
+              scoreFilabilite={signalement.scoreFilabilite}
+              onValidationEffectuee={() => charger()}
+            />
+          )}
         </View>
 
         {/* ── Onglets ────────────────────────────────────── */}
@@ -765,6 +818,12 @@ export default function DetailScreen() {
           </View>
         )}
 
+        {!estLeMien && (
+          <TouchableOpacity onPress={demanderMotifAbus} style={styles.abusBtn}>
+            <Text style={styles.abusText}>⚑ Signaler un contenu abusif</Text>
+          </TouchableOpacity>
+        )}
+
         <View style={{ height: 48 }} />
       </ScrollView>
     </View>
@@ -773,6 +832,19 @@ export default function DetailScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: GRIS },
+  heroProduit: { fontSize: 17, fontWeight: "800", color: "#1A1A1A", marginBottom: 8 },
+  statutBadge: {
+    alignSelf: "flex-start",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginBottom: 12,
+  },
+  statutText: { fontSize: 12, fontWeight: "700" },
+  mienBox: { backgroundColor: "#FFFFFF", borderRadius: 12, padding: 14 },
+  mienText: { fontSize: 13, color: "#666666", lineHeight: 18 },
+  abusBtn: { alignItems: "center", paddingVertical: 12 },
+  abusText: { fontSize: 12, color: "#999999", textDecorationLine: "underline" },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",

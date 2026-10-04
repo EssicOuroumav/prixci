@@ -1,6 +1,6 @@
 # PrixCI — Cahier des charges
 
-Version 1.0 — reconstruit le 4 octobre 2026 à partir du code, du README, de CONTEXTE.md et de ROADMAP.md.
+Version 1.1 — 4 octobre 2026. Reconstruit à partir du code, puis mis à jour après la réalisation des lots 0 à 4.
 
 Légende des statuts : **Fait** = présent dans le code · **Partiel** = présent mais incomplet ou bogué · **À faire** = absent du code.
 Les statuts décrivent le code lu, pas un test sur téléphone.
@@ -53,8 +53,8 @@ Une application mobile où chacun signale les prix qu'il observe, où la communa
 |---|---|---|
 | F4 | Choix de la commune (Yopougon par défaut) | Fait |
 | F5 | Liste des prix moyens de la commune : moyenne, min, max, nombre de signalements | Fait |
-| F6 | Alerte « Écart » quand le prix s'éloigne du prix de référence | Fait |
-| F7 | Tendance du prix (hausse, baisse, stable) | Fait |
+| F6 | Alerte « Écart » quand le prix s'éloigne du prix de référence | Fait (écart en % affiché par rapport au prix de référence OCPV) |
+| F7 | Tendance du prix (hausse, baisse, stable) | À faire (la tendance n'existe que dans le graphique du détail) |
 | F8 | Raccourci « Signaler un prix » | Fait |
 | F9 | Détection de la commune par géolocalisation | À faire (la permission est déclarée, pas utilisée à l'accueil) |
 
@@ -62,12 +62,12 @@ Une application mobile où chacun signale les prix qu'il observe, où la communa
 Formulaire en 3 étapes.
 | # | Fonctionnalité | Statut |
 |---|---|---|
-| F10 | Étape 1 — choix du produit avec recherche, parmi 83 références (70 alimentaires, 13 transports) | Fait |
+| F10 | Étape 1 — choix du produit avec recherche, parmi 85 références (70 alimentaires, 15 transports) | Fait |
 | F11 | Étape 2 — saisie du prix en FCFA et de l'unité (kg, g, litre, unité, tas, botte, sac 25 kg, sac 50 kg, boîte, trajet) | Fait |
-| F12 | Étape 3 — commune, type de point de vente (7 types), nom du lieu optionnel | Partiel (listé comme bug n°6 dans la roadmap) |
+| F12 | Étape 3 — commune, type de point de vente (7 types), nom du lieu optionnel | Fait (commune, quartier, type de lieu, nom du lieu ; gare ou arrêt pour un trajet) |
 | F13 | Contrôle du prix : refus d'un prix invalide ou anormalement élevé | Fait |
-| F14 | Enregistrement immédiat sur le téléphone, envoi au serveur plus tard | Partiel (le lieu n'est pas envoyé au serveur) |
-| F15 | Trajets internes à une commune pour le transport | À faire |
+| F14 | Enregistrement immédiat sur le téléphone, envoi au serveur plus tard | Fait (lieu compris ; envoi lancé juste après la saisie) |
+| F15 | Trajets internes à une commune pour le transport | Fait (gbaka, woro-woro et taxi intra-commune au catalogue) |
 | F16 | Photo du prix ou du ticket comme preuve | À faire (option à décider) |
 
 ### 3.4 Explorer et comparer
@@ -75,15 +75,15 @@ Formulaire en 3 étapes.
 |---|---|---|
 | F17 | Recherche d'un produit | Fait |
 | F18 | Comparaison des prix par point de vente, avec badge « Moins cher » | Fait |
-| F19 | Séparation en deux sections : alimentation et transport | À faire (bug n°2) |
-| F20 | Filtre par nom de produit | À faire |
-| F21 | Vote directement depuis la liste | Fait |
-| F22 | Lien « voir historique » | Partiel (erreur à l'ouverture, bug n°4) |
+| F19 | Séparation en deux sections : alimentation et transport | Fait |
+| F20 | Filtre par nom de produit | Fait |
+| F21 | Vote directement depuis la liste | Fait (dans la file « À confirmer » de chaque produit) |
+| F22 | Lien « voir historique » | Fait |
 
 ### 3.5 Détail d'un signalement
 | # | Fonctionnalité | Statut |
 |---|---|---|
-| F23 | Fiche complète : produit, prix, lieu, date, auteur, score de fiabilité | Partiel (nom du produit manquant dans la comparaison, bug n°3) |
+| F23 | Fiche complète : produit, prix, lieu, date, auteur, score de fiabilité | Fait (nom du produit et statut vérifié / à confirmer en tête de fiche) |
 | F24 | Graphique d'évolution du prix sur 30 jours | Fait |
 | F25 | Indicateurs : prix actuel, prix il y a 30 jours, minimum, maximum, fourchette | Fait |
 | F26 | Liste des votes reçus | Fait |
@@ -94,7 +94,7 @@ Formulaire en 3 étapes.
 | F27 | Boutons « Confirmer » et « Contester » | Fait |
 | F28 | Un seul vote par personne et par signalement | Fait |
 | F29 | Interdiction de voter sur son propre signalement | Fait |
-| F30 | Un signalement n'apparaît publiquement qu'après 10 confirmations | Partiel (appliqué seulement à la comparaison avec les prix officiels) |
+| F30 | Un signalement n'apparaît publiquement qu'après 10 confirmations | Fait (moyennes, comparaisons et graphiques ; les autres restent dans la file « À confirmer ») |
 
 ### 3.7 Score de confiance
 | # | Règle | Statut |
@@ -102,44 +102,44 @@ Formulaire en 3 étapes.
 | F31 | Score utilisateur de 0 à 100, départ à 50 | Fait |
 | F32 | +3 par confirmation reçue, −5 par contestation reçue, +1 par vote donné | Fait |
 | F33 | Badges : Expert citoyen (90+), Contributeur actif (70+), Membre (50+), Débutant (30+), Non fiable | Fait |
-| F34 | Score de fiabilité d'un signalement : 40 % score de l'auteur, 60 % votes | Partiel (la formule de l'application et celle du serveur sont différentes) |
+| F34 | Score de fiabilité d'un signalement : 40 % score de l'auteur, 60 % votes | Fait (règle unique : 60 % du score de l'auteur, +5 par confirmation, −8 par contestation) |
 | F35 | Libellés : Très fiable (80+), Fiable (60+), À vérifier (30+), Non fiable ; masqué sous 30 | Fait |
 
 ### 3.8 Enseignes
 | # | Fonctionnalité | Statut |
 |---|---|---|
-| F36 | Liste des enseignes par commune | Partiel (erreur « permission denied », bug n°5 : les tables n'existent pas côté serveur) |
-| F37 | Inscription : nom, type, commune, quartier, adresse, téléphone | Partiel (même cause) |
-| F38 | Fiche enseigne avec ses prix officiels, badge « Officiel » | Partiel (même cause) |
-| F39 | Ajout et suppression d'un prix par l'enseigne | Partiel (produit saisi en texte libre, non relié au catalogue) |
-| F40 | Rattachement d'une enseigne à un compte : seul son propriétaire modifie ses prix | À faire (aujourd'hui n'importe qui pourrait modifier) |
+| F36 | Liste des enseignes par commune | Code fait ; script `supabase_migration_v2.sql` à exécuter |
+| F37 | Inscription : nom, type, commune, quartier, adresse, téléphone | Code fait ; même script |
+| F38 | Fiche enseigne avec ses prix officiels, badge « Officiel » | Code fait ; même script |
+| F39 | Ajout et suppression d'un prix par l'enseigne | Fait (produit choisi dans le catalogue, unités du produit) |
+| F40 | Rattachement d'une enseigne à un compte : seul son propriétaire modifie ses prix | Fait (propriétaire fixé par le serveur, testé) |
 | F41 | Vérification d'une enseigne avant publication | À faire |
-| F42 | Comparaison côte à côte : prix officiels et signalements | Partiel |
+| F42 | Comparaison côte à côte : prix officiels et signalements | Fait (prix officiels en tête de la comparaison, réseau nécessaire) |
 
 ### 3.9 Profil
 | # | Fonctionnalité | Statut |
 |---|---|---|
 | F43 | Pseudonyme, score, badge, nombre de signalements et de validations reçues | Fait |
-| F44 | Affichage différent pour un consommateur et pour une enseigne | À faire (bug n°7) |
-| F45 | Historique de mes signalements | À faire |
-| F46 | Mode démo : recharger 61 signalements d'exemple, vider les données | Fait (à retirer avant publication) |
+| F44 | Affichage différent pour un consommateur et pour une enseigne | Fait (compte enseigne : nom, badge et accès à la gestion des prix) |
+| F45 | Historique de mes signalements | Fait (avec statut : vérifié, à confirmer, en attente de réseau) |
+| F46 | Mode démo : recharger 61 signalements d'exemple, vider les données | Fait (présent seulement en développement, absent de la version publiée) |
 
 ### 3.10 Hors ligne et synchronisation
 | # | Fonctionnalité | Statut |
 |---|---|---|
 | F47 | Toutes les données consultables et saisissables sans réseau | Fait |
-| F48 | Envoi automatique des signalements et des votes au retour du réseau | Partiel (lancé au démarrage seulement) |
-| F49 | Récupération des signalements des 7 derniers jours de la commune | Fait |
+| F48 | Envoi automatique des signalements et des votes au retour du réseau | Fait (au démarrage, au retour au premier plan, après chaque signalement et chaque vote) |
+| F49 | Récupération des signalements des 7 derniers jours de la commune | Fait (30 derniers jours, avec les votes des autres utilisateurs) |
 | F50 | Indicateur d'état : en cours, réussi, erreur, hors ligne | Fait |
 
 ### 3.11 À prévoir pour une vraie mise en service
 | # | Fonctionnalité | Statut |
 |---|---|---|
-| F51 | Espace d'administration : modération, validation des enseignes | À faire |
-| F52 | Signaler un contenu abusif | À faire |
+| F51 | Espace d'administration : modération, validation des enseignes | Partiel (modération dans le tableau de bord Supabase : table `abus`, statut des enseignes) |
+| F52 | Signaler un contenu abusif | Fait (sur un signalement et sur une enseigne) |
 | F53 | Notifications (baisse de prix, vote reçu) | À faire, optionnel |
 | F54 | Partage d'un prix vers WhatsApp | À faire, optionnel |
-| F55 | Écrans « Conditions d'utilisation » et « Confidentialité » | À faire (exigé par les stores) |
+| F55 | Écrans « Conditions d'utilisation » et « Confidentialité » | Fait (texte de travail, à faire relire par un juriste) |
 
 ---
 
@@ -147,7 +147,7 @@ Formulaire en 3 étapes.
 
 ### 4.1 Catalogue (fixe, embarqué dans l'application)
 - Alimentation : légumes-tubercules (7), légumes-feuilles (2), légumes-fruits (14), viandes (12), poissons (9), fruits (8), céréales et légumineuses (11), huiles et condiments (7).
-- Transport : gbaka (5), woro-woro (5), taxi (3).
+- Transport : gbaka (6), woro-woro (6), taxi (3), dont les trajets internes à une commune.
 - Chaque produit a une unité par défaut et, quand il existe, un prix de référence OCPV.
 
 ### 4.2 Tables
@@ -156,8 +156,9 @@ Formulaire en 3 étapes.
 | users | Profil anonyme et score | Oui | Oui |
 | signalements | Prix signalés | Oui | Oui |
 | validations | Votes | Oui | Oui |
-| enseignes | Commerces inscrits | Non | **Script manquant** |
-| prix_officiels | Prix publiés par les enseignes | Non | **Script manquant** |
+| enseignes | Commerces inscrits | Non | Oui (migration v2) |
+| prix_officiels | Prix publiés par les enseignes | Non | Oui (migration v2) |
+| abus | Contenus signalés comme abusifs | Non | Oui (migration v2) |
 
 Vues serveur : `prix_agreges` (moyennes sur 30 jours) et `comparaison_par_lieu` (classement du moins cher au plus cher).
 
@@ -189,26 +190,32 @@ Vues serveur : `prix_agreges` (moyennes sur 30 jours) et `comparaison_par_lieu` 
 
 ---
 
-## 7. Décisions à prendre
+## 7. Décisions
 
-- **D1 — Nommer les commerces.** Le README dit « pas de nommage de commerçants en V1 (risque juridique) », mais l'application permet de saisir un nom de lieu et d'inscrire des enseignes. Il faut choisir une règle.
-- **D2 — Seuil de visibilité.** 10 confirmations (CONTEXTE.md) ou score ≥ 30 (code actuel) ? Les deux règles coexistent.
-- **D3 — Compte enseigne.** Comment une enseigne prouve-t-elle son identité : téléphone, e-mail, validation manuelle ?
-- **D4 — Formule de fiabilité.** Garder celle de l'application ou celle du serveur ; une seule doit rester.
+Décisions prises par défaut pendant la réalisation. Chacune peut être revue.
+
+- **D1 — Nommer les commerces : autorisé.** Les notes les plus récentes prévoient les enseignes et le nom du lieu. En contrepartie : signalement d'abus et retrait possible par l'équipe. À valider avec un juriste.
+- **D2 — Seuil de visibilité : 10 confirmations.** Réglable dans une seule constante (`SEUIL_CONFIRMATIONS`, fichier `services/scoring.ts`). Risque connu : application peu remplie au lancement.
+- **D3 — Compte enseigne : rattaché au compte anonyme qui l'inscrit**, active immédiatement. La suspension se fait dans Supabase (colonne `statut`). Limite : le compte est lié au téléphone ; en cas de changement d'appareil l'accès à l'enseigne est perdu.
+- **D4 — Formule de fiabilité : une seule règle**, identique dans l'application et sur le serveur.
+
+Reste à décider :
+
 - **D5 — Publication.** Play Store seul d'abord, ou Play Store et App Store ?
+- **D6 — Récupération de compte.** Faut-il un numéro de téléphone ou un e-mail pour les enseignes, afin de survivre à un changement d'appareil ?
 
 ---
 
 ## 8. Plan de réalisation
 
-| Lot | Contenu | Résultat attendu |
+| Lot | Contenu | État |
 |---|---|---|
-| 0 — Assainir | Git, suppression du dossier `{app`, correction des 5 erreurs TypeScript, dossier `assets`, mise à jour du README et de CONTEXTE.md | Projet propre qui compile |
-| 1 — Serveur | Scripts SQL de `enseignes` et `prix_officiels` avec leurs droits, envoi du lieu à la synchronisation, formule de fiabilité unique | Bug n°5 résolu, données complètes |
-| 2 — Bugs | Bugs n°2, 3, 4, 6 et 7 de la roadmap | Parcours consommateur sans erreur |
-| 3 — Fonctions manquantes | F15, F20, F30, F39, F40, F42, F45 | V1 fonctionnellement complète |
-| 4 — Mise en service | Modération, pages légales, retrait du mode démo, icône, tests sur téléphones réels | Version prête pour les testeurs |
-| 5 — Publication | Build, fiche store, test fermé puis ouverture | Application en ligne |
+| 0 — Assainir | Git, nettoyage, erreurs TypeScript, icône provisoire | Fait |
+| 1 — Serveur | Script `supabase_migration_v2.sql`, synchronisation complète, règle de fiabilité unique | Code fait et testé hors Supabase ; script à exécuter sur le projet Supabase |
+| 2 — Bugs | Les 7 bugs de la roadmap | Corrigés dans le code |
+| 3 — Fonctions manquantes | F15, F20, F30, F39, F40, F42, F45 | Fait |
+| 4 — Mise en service | Signalement d'abus, pages légales, démo retirée de la version publiée, configuration de build | Fait ; tests sur téléphone à mener |
+| 5 — Publication | Build, fiche store, test fermé puis ouverture | À faire |
 
 ### Critères d'acceptation de la V1
 1. Un nouvel utilisateur signale un prix en moins de 30 secondes, sans réseau.

@@ -8,7 +8,7 @@ App citoyenne offline-first permettant aux habitants d'Abidjan de signaler et co
 ## Stack technique
 | Couche | Technologie |
 |---|---|
-| Framework | Expo SDK 51 + React Native + TypeScript |
+| Framework | Expo SDK 54 + React Native + TypeScript |
 | Navigation | Expo Router (file-based) |
 | Stockage local | expo-sqlite (SQLite natif) |
 | Auth anonyme | Supabase Anonymous Auth |
@@ -28,7 +28,7 @@ npm install
 
 ### 2. Configurer Supabase
 1. Créer un projet sur https://supabase.com (gratuit)
-2. Dans **SQL Editor**, exécuter le contenu de `supabase_schema.sql`
+2. Dans **SQL Editor**, exécuter dans l'ordre `supabase_schema.sql`, `supabase_migration_sprint3.sql` puis `supabase_migration_v2.sql`
 3. Dans **Settings > API**, copier l'URL et la clé anon
 4. Créer le fichier `.env` :
 ```bash
@@ -47,41 +47,18 @@ npx expo start
 
 ---
 
-## Architecture des fichiers
-
+### 5. Vérifier
+```bash
+npm test
 ```
-prixci/
-├── app/
-│   ├── _layout.tsx              # Initialisation (DB, auth, sync)
-│   └── (tabs)/
-│       ├── _layout.tsx          # Navigation par onglets
-│       ├── index.tsx            # Accueil — prix par commune
-│       ├── signaler.tsx         # Formulaire 3 étapes
-│       ├── explorer.tsx         # Recherche (Sprint 3)
-│       └── profil.tsx           # Score de confiance
-├── services/
-│   ├── db.ts                    # SQLite CRUD complet
-│   ├── auth.ts                  # Auth anonyme Supabase
-│   ├── sync.ts                  # Sync offline-first
-│   └── scoring.ts               # Logique réputation
-├── stores/
-│   └── useAppStore.ts           # État global Zustand
-└── constants/
-    ├── types.ts                 # Types TypeScript
-    └── produits.ts              # 70+ produits OCPV + transports
-```
+Lance le contrôle de typage puis exécute les trois scripts SQL dans un Postgres embarqué pour vérifier les droits d'accès, les votes et les enseignes.
 
 ---
 
-## Roadmap
-
-| Sprint | Statut | Contenu |
-|---|---|---|
-| S1 — Foundation | ✅ Terminé | Setup, SQLite, auth, navigation |
-| S2 — Signalement | ✅ Terminé | Formulaire 3 étapes, stockage local |
-| S3 — Consultation | 🔜 À faire | Écran explorer, filtres, comparaison |
-| S4 — Réputation | 🔜 À faire | Votes communautaires, badges |
-| S5 — Sync + Polish | 🔜 À faire | Sync complète, onboarding |
+## Documentation
+- `CAHIER_DES_CHARGES.md` : fonctionnalités et leur état
+- `CONTEXTE.md` : structure du code et règles métier
+- `ROADMAP.md` : ce qui reste à faire avant publication
 
 ---
 
@@ -89,10 +66,10 @@ prixci/
 
 Inspiré de Waze :
 - Score utilisateur initial : **50/100**
-- +3 pts : signalement confirmé par 2+ utilisateurs
-- -5 pts : signalement contesté par 3+ utilisateurs
-- +1 pt : avoir voté sur le signalement d'un autre
-- Seuil affichage public : **score ≥ 30**
+- +3 pts par confirmation reçue, −5 pts par contestation reçue
+- +1 pt pour chaque vote donné
+- Un signalement devient public après **10 confirmations**
+- Un signalement dont la fiabilité tombe sous **30** est masqué
 
 ---
 
@@ -106,4 +83,4 @@ Inspiré de Waze :
 - Aucune donnée personnelle collectée
 - Pseudonymes générés automatiquement
 - Signalements anonymisés dans la base publique
-- Pas de nommage de commerçants en V1 (risque juridique)
+- Les lieux et enseignes peuvent être nommés ; tout contenu peut être signalé comme abusif et retiré

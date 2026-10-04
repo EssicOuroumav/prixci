@@ -1,50 +1,48 @@
-# PrixCI — Contexte complet
+# PrixCI — Contexte
 
 ## Stack technique
-- React Native + Expo SDK 54
-- expo-router (file-based routing)
-- TypeScript
-- Supabase (base de données cloud)
-- expo-sqlite (stockage local)
-- Zustand (state management)
-- Node.js v20.19.4
+- React Native + Expo SDK 54, expo-router (routes par fichiers), TypeScript
+- Supabase : auth anonyme, Postgres, droits d'accès par ligne
+- expo-sqlite : stockage local, source de l'affichage (hors ligne d'abord)
+- Zustand : état global
 
-## Structure du projet
-/Users/mac/Desktop/prixci-VFINAL
-├── app/
-│   ├── _layout.tsx (layout principal + onboarding)
-│   ├── (tabs)/
-│   │   ├── index.tsx (Accueil - prix par commune)
-│   │   ├── explorer.tsx (Comparaison prix)
-│   │   ├── enseignes.tsx (Liste enseignes)
-│   │   ├── signaler.tsx (Signaler un prix)
-│   │   └── profil.tsx (Profil utilisateur)
-│   ├── detail/ (détail signalement)
-│   └── enseigne/ (inscription + détail enseigne)
-├── services/
-│   ├── auth.ts (Supabase auth anonyme)
-│   ├── db.ts (SQLite local)
-│   ├── enseignes.ts (gestion enseignes)
-│   ├── sync.ts (synchronisation)
-│   └── demoSeed.ts (données de démo)
-├── stores/useAppStore.ts (Zustand)
-├── constants/ (types, produits)
-└── components/ (Onboarding, etc.)
+## Structure
+```
+app/
+  _layout.tsx            initialisation (base locale, compte, synchro) + onboarding
+  (tabs)/index.tsx       Accueil : prix vérifiés de la commune
+  (tabs)/explorer.tsx    Liste des produits puis comparaison d'un produit
+  (tabs)/enseignes.tsx   Enseignes de la commune
+  (tabs)/signaler.tsx    Formulaire en 3 étapes
+  (tabs)/profil.tsx      Score, mes signalements, mes enseignes
+  detail/[id].tsx        Détail d'un signalement, graphique, votes
+  enseigne/[id].tsx      Fiche d'une enseigne ; gestion des prix par son propriétaire
+  enseigne/inscription.tsx
+  legal.tsx              Conditions d'utilisation et confidentialité
+services/
+  auth.ts                client Supabase, compte anonyme
+  db.ts                  SQLite : tables, requêtes, agrégats
+  sync.ts                envoi et récupération ; syncAvecStore() est le point d'entrée
+  scoring.ts             seuil de confirmations, règle de fiabilité, badges
+  enseignes.ts           enseignes et prix officiels (serveur uniquement)
+  abus.ts                signalement de contenus abusifs
+  demoSeed.ts            données de démo, chargées en développement seulement
+constants/               types et catalogue des produits
+tests/                   test des scripts SQL dans un Postgres embarqué
+```
 
-## Architecture métier
-- Consommateur : signale prix + lieu, visible après 10 confirmations
-- Enseigne : s'inscrit, publie prix officiels (✅ officiel)
-- Vue comparaison : officiel + signalements côte à côte
+## Règles métier
+- Un signalement devient « vérifié » à 10 confirmations (`SEUIL_CONFIRMATIONS`). Seuls les vérifiés comptent dans les moyennes, comparaisons et graphiques ; les autres sont dans la file « À confirmer ».
+- Fiabilité d'un signalement : 60 % du score de l'auteur au départ, +5 par confirmation, −8 par contestation ; masqué sous 30.
+- Score utilisateur : départ 50, +3 par confirmation reçue, −5 par contestation reçue, +1 par vote donné.
+- Les scores et compteurs sont calculés par le serveur ; l'application applique la même règle localement pour l'affichage immédiat.
+- Une enseigne appartient au compte qui l'a inscrite ; lui seul modifie ses prix officiels.
 
 ## Supabase
-- URL: dans .env (EXPO_PUBLIC_SUPABASE_URL)
-- Ta- Ta- Ta- Ta- Ta- Ta- Ta- Ta- Ta- Ta- Ta- Ta- Ta- Ta- Ta- Tic- Ta- Ta- Ta- Ta- Ta- Ta- Ta- Ta- Ta- Ta- Ta- Ta- Tspa- Ta- Ta- Ta- Ta- Ta- Ta- Ta- Ta- Ta- Ta- Ta- Ta- Tran- Ta- Ta- Ta- Ta- Ta- Ta- Ta- Ta- Ta- Ta- Ta- Ta- Tmanquant
-4. Clic "voir historique" → erreur router
-5. E5. E5. E5. E5. E5. E5. E5. E5. E5. E5. E5. Eseignes"
-6. Signalement : manque commune + lieu
-7. Profil : p7. Profil : p7. P co7. Profil : p7. Profil : p7. P co7. Profil :ajouter
-1. Transport intra-commune
-2. Filtre produit dans Explorer
-3. Interface ajout prix pour enseignes
-4. Seuil 10 confirmations
-5. Vue comparaison enrichie
+- Adresse et clé publique dans `.env` (voir `.env.example`). Le fichier `.env` n'est pas versionné.
+- Scripts à exécuter dans l'ordre : `supabase_schema.sql`, `supabase_migration_sprint3.sql`, `supabase_migration_v2.sql`.
+- Activer Authentication > Sign In / Providers > Anonymous.
+
+## Commandes
+- `npx expo start` : lancer l'application
+- `npm test` : typage + test des scripts SQL

@@ -8,6 +8,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   icon: "./assets/icon.png",
   userInterfaceStyle: "light",
   splash: {
+    image: "./assets/splash-icon.png",
+    resizeMode: "contain",
     backgroundColor: "#0A5F38",
   },
   ios: {
@@ -20,6 +22,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   android: {
     adaptiveIcon: {
+      foregroundImage: "./assets/adaptive-icon.png",
       backgroundColor: "#0A5F38",
     },
     package: "ci.prixci.app",

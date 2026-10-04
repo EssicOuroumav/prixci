@@ -1,31 +1,38 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useCallback } from "react";
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl } from "react-native";
-import { router } from "expo-router";
-import { getEnseignesByCommune, Enseigne, TypeEnseigne } from "@/services/enseignes";
-
-const COMMUNES = ["Abobo", "Adjamé", "Attécoubé", "Cocody", "Koumassi", "Marcory", "Plateau", "Port-Bouët", "Treichville", "Yopougon"];
-const TYPE_EMOJI: Record<TypeEnseigne, string> = { supermarche: "🏪", boutique: "🏬", pharmacie: "💊", marche: "🛒" };
-const TYPE_LABEL: Record<TypeEnseigne, string> = { supermarche: "Supermarché", boutique: "Boutique", pharmacie: "Pharmacie", marche: "Marché" };
+import { router, useFocusEffect } from "expo-router";
+import { getEnseignesByCommune, infoTypeEnseigne, Enseigne } from "@/services/enseignes";
+import { COMMUNES_ABIDJAN } from "@/constants/types";
+import { useAppStore } from "@/stores/useAppStore";
 
 export default function EnseignesScreen() {
-  const [commune, setCommune] = useState("Abobo");
+  // Même commune que sur les autres onglets
+  const { user, communeSelectionnee: commune, setCommuneSelectionnee: setCommune } = useAppStore();
   const [enseignes, setEnseignes] = useState<Enseigne[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [horsLigne, setHorsLigne] = useState(false);
 
-  useEffect(() => { charger(); }, [commune]);
-
-  async function charger() {
-    setLoading(true);
+  const charger = useCallback(async () => {
     try {
-      const data = await getEnseignesByCommune(commune);
-      setEnseignes(data);
-    } catch (e) {
-      console.error(e);
+      setEnseignes(await getEnseignesByCommune(commune));
+      setHorsLigne(false);
+    } catch {
+      // Les enseignes viennent du serveur : rien à afficher sans réseau
+      setEnseignes([]);
+      setHorsLigne(true);
     } finally {
       setLoading(false);
     }
-  }
+  }, [commune]);
+
+  // Recharge au retour sur l'onglet (après une inscription) et au changement de commune
+  useFocusEffect(
+    useCallback(() => {
+      setLoading(true);
+      charger();
+    }, [charger])
+  );
 
   async function onRefresh() {
     setRefreshing(true);
@@ -40,7 +47,7 @@ export default function EnseignesScreen() {
         <Text style={styles.subtitle}>Prix officiels par commune</Text>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.communeScroll}>
-        {COMMUNES.map((c) => (
+        {COMMUNES_ABIDJAN.map((c) => (
           <TouchableOpacity key={c} style={[styles.communeChip, commune === c && styles.communeChipActive]} onPress={() => setCommune(c)}>
             <Text style={[styles.communeText, commune === c && styles.communeTextActive]}>{c}</Text>
           </TouchableOpacity>
@@ -49,6 +56,12 @@ export default function EnseignesScreen() {
       <ScrollView style={styles.list} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
         {loading ? (
           <ActivityIndicator color="#0A5F38" style={{ marginTop: 40 }} />
+        ) : horsLigne ? (
+          <View style={styles.empty}>
+            <Text style={styles.emptyEmoji}>📵</Text>
+            <Text style={styles.emptyTitle}>Connexion nécessaire</Text>
+            <Text style={styles.emptyText}>Les enseignes s'affichent dès que le réseau revient. Tire vers le bas pour réessayer.</Text>
+          </View>
         ) : enseignes.length === 0 ? (
           <View style={styles.empty}>
             <Text style={styles.emptyEmoji}>🏪</Text>
@@ -57,17 +70,17 @@ export default function EnseignesScreen() {
           </View>
         ) : (
           enseignes.map((e) => (
-            <TouchableOpacity key={e.id} style={styles.card} onPress={() => router.push(`/enseigne/${e.id}`)}>
+            <TouchableOpacity key={e.id} style={styles.card} onPress={() => router.push({ pathname: "/enseigne/[id]", params: { id: e.id } })}>
               <View style={styles.cardLeft}>
-                <Text style={styles.cardEmoji}>{TYPE_EMOJI[e.type]}</Text>
-                <View>
-                  <Text style={styles.cardNom}>{e.nom}</Text>
-                  <Text style={styles.cardType}>{TYPE_LABEL[e.type]} · {e.commune}</Text>
+                <Text style={styles.cardEmoji}>{infoTypeEnseigne(e.type).emoji}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.cardNom} numberOfLines={1}>{e.nom}</Text>
+                  <Text style={styles.cardType}>{infoTypeEnseigne(e.type).label} · {e.commune}</Text>
                   {e.quartier ? <Text style={styles.cardAdresse}>{e.quartier}</Text> : null}
                 </View>
               </View>
               <View style={styles.badge}>
-                <Text style={styles.badgeText}>✅ Officiel</Text>
+                <Text style={styles.badgeText}>{e.ownerId === user?.id ? "Mon enseigne" : "✅ Officiel"}</Text>
               </View>
             </TouchableOpacity>
           ))

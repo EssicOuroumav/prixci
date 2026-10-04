@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { UserProfile, Commune, PrixAgrege } from "@/constants/types";
-import { SyncStatus } from "@/services/sync";
+import type { SyncStatus } from "@/services/sync";
 
 // ============================================================
 // STORE GLOBAL — ZUSTAND

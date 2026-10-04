@@ -1,20 +1,18 @@
 import { useEffect, useState } from "react";
+import { AppState } from "react-native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getOrCreateAnonymousUser } from "@/services/auth";
 import { getDb } from "@/services/db";
-import { syncIfOnline } from "@/services/sync";
+import { syncAvecStore } from "@/services/sync";
 import { getUserValidations } from "@/services/db";
 import { seedDemoData } from "@/services/demoSeed";
 import { useAppStore } from "@/stores/useAppStore";
 import Onboarding from "@/components/Onboarding";
 
 export default function RootLayout() {
-  const {
-    setUser, setSyncStatus, setLastSyncAt, setInitialized,
-    addValidation, communeSelectionnee,
-  } = useAppStore();
+  const { setUser, setInitialized, addValidation } = useAppStore();
 
   const [onboardingFait, setOnboardingFait] = useState<boolean | null>(null);
 
@@ -32,8 +30,8 @@ export default function RootLayout() {
         const user = await getOrCreateAnonymousUser();
         setUser(user);
 
-        // Injecter les données de démo (silencieux si déjà fait)
-        await seedDemoData(user.id);
+        // Données de démo : uniquement en développement, jamais dans la version publiée
+        if (__DEV__) await seedDemoData(user.id);
 
         // Charger les validations déjà effectuées
         const validations = await getUserValidations(user.id);
@@ -42,10 +40,7 @@ export default function RootLayout() {
         setInitialized(true);
 
         // Sync silencieuse en arrière-plan
-        syncIfOnline(communeSelectionnee, (status) => {
-          setSyncStatus(status);
-          if (status === "success") setLastSyncAt(new Date().toISOString());
-        });
+        syncAvecStore();
       } catch (err) {
         console.error("[Init] Erreur :", err);
         setOnboardingFait(false); // Afficher onboarding par défaut si erreur
@@ -53,6 +48,12 @@ export default function RootLayout() {
       }
     }
     init();
+
+    // Nouvelle synchronisation à chaque retour de l'application au premier plan
+    const abonnement = AppState.addEventListener("change", (etat) => {
+      if (etat === "active" && useAppStore.getState().isInitialized) syncAvecStore();
+    });
+    return () => abonnement.remove();
   }, []);
 
   // Attendre la vérification avant de rendre quoi que ce soit
@@ -80,6 +81,9 @@ export default function RootLayout() {
             animation: "slide_from_right",
           }}
         />
+        <Stack.Screen name="enseigne/[id]" options={{ animation: "slide_from_right" }} />
+        <Stack.Screen name="enseigne/inscription" options={{ animation: "slide_from_right" }} />
+        <Stack.Screen name="legal" options={{ animation: "slide_from_right" }} />
       </Stack>
     </>
   );
