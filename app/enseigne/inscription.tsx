@@ -5,6 +5,7 @@ import { inscrireEnseigne, TypeEnseigne, TYPES_ENSEIGNE } from "@/services/ensei
 import SelecteurZone from "@/components/SelecteurZone";
 import { useAppStore } from "@/stores/useAppStore";
 import Icone from "@/components/Icone";
+import { HAUT_ECRAN } from "@/constants/layout";
 
 export default function InscriptionEnseigne() {
   const [nom, setNom] = useState("");
@@ -89,7 +90,7 @@ export default function InscriptionEnseigne() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
-  content: { padding: 20, paddingTop: 56, paddingBottom: 40 },
+  content: { padding: 20, paddingTop: HAUT_ECRAN, paddingBottom: 40 },
   back: { color: "#0A5F38", fontSize: 14, marginBottom: 12 },
   title: { fontSize: 24, fontWeight: "700", color: "#0A5F38", marginBottom: 8 },
   subtitle: { fontSize: 14, color: "#666", marginBottom: 24 },

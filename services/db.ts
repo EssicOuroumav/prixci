@@ -7,13 +7,24 @@ import type { PrixReference } from "./reference";
 // SERVICE BASE DE DONNÉES LOCALE — SQLite (expo-sqlite v14)
 // ============================================================
 
-let db: SQLite.SQLiteDatabase | null = null;
+// Une seule ouverture, partagée : sans cela, deux écrans qui demandent la base
+// en même temps lançaient deux fois la création du schéma (colonnes en double)
+// ou lisaient la base avant que le schéma soit prêt.
+let ouverture: Promise<SQLite.SQLiteDatabase> | null = null;
 
-export async function getDb(): Promise<SQLite.SQLiteDatabase> {
-  if (db) return db;
-  db = await SQLite.openDatabaseAsync("prixci.db");
-  await initSchema(db);
-  return db;
+export function getDb(): Promise<SQLite.SQLiteDatabase> {
+  if (!ouverture) {
+    ouverture = (async () => {
+      const db = await SQLite.openDatabaseAsync("prixci.db");
+      await initSchema(db);
+      return db;
+    })().catch((err) => {
+      // Laisse une nouvelle tentative possible au prochain appel
+      ouverture = null;
+      throw err;
+    });
+  }
+  return ouverture;
 }
 
 // ─── Initialisation du schéma ──────────────────────────────

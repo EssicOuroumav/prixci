@@ -5,6 +5,7 @@ import { getEnseignesByCommune, infoTypeEnseigne, Enseigne } from "@/services/en
 import SelecteurZone from "@/components/SelecteurZone";
 import { useAppStore } from "@/stores/useAppStore";
 import Icone from "@/components/Icone";
+import { HAUT_ECRAN } from "@/constants/layout";
 
 export default function EnseignesScreen() {
   // Même commune que sur les autres onglets
@@ -90,7 +91,7 @@ export default function EnseignesScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f5f5f5" },
-  header: { backgroundColor: "#0A5F38", padding: 20, paddingTop: 60 },
+  header: { backgroundColor: "#0A5F38", padding: 20, paddingTop: HAUT_ECRAN },
   title: { fontSize: 28, fontWeight: "700", color: "#fff" },
   subtitle: { fontSize: 14, color: "rgba(255,255,255,0.8)", marginTop: 4 },
   communeScroll: { backgroundColor: "#fff", paddingVertical: 12, paddingHorizontal: 16, maxHeight: 56 },
@@ -107,7 +108,7 @@ const styles = StyleSheet.create({
   cardAdresse: { fontSize: 12, color: "#999", marginTop: 2 },
   badge: { backgroundColor: "#e8f5e9", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
   badgeText: { fontSize: 12, color: "#0A5F38", fontWeight: "600" },
-  empty: { alignItems: "center", paddingTop: 60 },
+  empty: { alignItems: "center", paddingTop: HAUT_ECRAN },
   emptyEmoji: { fontSize: 48, marginBottom: 16 },
   emptyTitle: { fontSize: 18, fontWeight: "600", color: "#333", marginBottom: 8, marginTop: 16 },
   emptyText: { fontSize: 14, color: "#666", textAlign: "center" },

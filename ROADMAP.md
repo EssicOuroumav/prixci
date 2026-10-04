@@ -18,7 +18,7 @@ Mise à jour : 4 octobre 2026. Le but du produit et les règles sont dans `CONTE
 1. Exécuter `supabase_migration_v4.sql` dans le SQL Editor de Supabase (la v3 est déjà passée)
 2. Relire les prix saisis : bulletin (`constants/prixOfficiels.ts`) et relevé OCPV (`constants/prixOfficielsOcpv.ts`)
 3. Chaque semaine : ajouter le nouveau bulletin ou relevé dans la table `prix_reference` (relevés OCPV : economie-ivoirienne.ci/info-prix.html)
-4. Tester sur un téléphone Android
+4. Tester sur un vrai téléphone Android (l'émulateur `PrixCI_Android11` sert aux vérifications courantes)
 
 ## Prochaine étape de développement
 - Prix plafonnés par arrêté (riz, huile, sucre, tomate, lait, pâtes, viande) : par marque et par zone. Les seuls documents publiés datent de juin 2022 ; il faut les plafonds en vigueur.
@@ -28,7 +28,7 @@ Mise à jour : 4 octobre 2026. Le but du produit et les règles sont dans `CONTE
 - Logement
 
 ## Avant publication
-- Clé Google Maps pour la version Android installable (la carte fonctionne sans clé dans Expo Go uniquement)
+- Carte : fond OpenStreetMap public, suffisant pour démarrer ; prévoir un fournisseur de tuiles dédié si l'usage devient important
 - Amorcer les données : relevés de prix dans une commune pilote avant d'ouvrir au public
 - Faire relire les conditions d'utilisation (`app/legal.tsx`) et y mettre une adresse de contact
 - Avis juridique sur le fait de nommer un commerce en dépassement, et déclaration à l'ARTCI (données de position)

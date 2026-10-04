@@ -26,6 +26,7 @@ import { PRODUITS_REF, LABELS_UNITE } from "@/constants/produits";
 import { ProduitRef, Unite } from "@/constants/types";
 import { useAppStore } from "@/stores/useAppStore";
 import Icone from "@/components/Icone";
+import { HAUT_ECRAN } from "@/constants/layout";
 
 // ============================================================
 // FICHE D'UNE ENSEIGNE
@@ -338,7 +339,7 @@ const VERT = "#0A5F38";
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F5F7F5" },
-  header: { backgroundColor: VERT, paddingHorizontal: 20, paddingTop: 56, paddingBottom: 16 },
+  header: { backgroundColor: VERT, paddingHorizontal: 20, paddingTop: HAUT_ECRAN, paddingBottom: 16 },
   back: { color: "rgba(255,255,255,0.8)", fontSize: 14, marginBottom: 8 },
   title: { fontSize: 22, fontWeight: "800", color: "#fff" },
   subtitle: { fontSize: 13, color: "rgba(255,255,255,0.8)", marginTop: 4 },

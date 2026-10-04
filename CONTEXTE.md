@@ -17,7 +17,7 @@ app/
   (tabs)/profil.tsx      Score, mes signalements, mes enseignes
   detail/[id].tsx        Détail d'un signalement, graphique, votes
   marche.tsx             « Faire mon marché » : liste de courses puis commerces où l'acheter
-  carte.tsx              Carte des commerces
+  carte.tsx              Carte des commerces (OpenStreetMap + Leaflet dans une vue web, sans clé)
   commerce.tsx           Fiche d'un commerce : ses prix vérifiés comparés aux prix officiels
   enseigne/[id].tsx      Fiche d'une enseigne ; gestion des prix par son propriétaire
   enseigne/inscription.tsx
@@ -62,6 +62,12 @@ Une personne qui fait son marché ouvre « Faire mon marché », coche ses produ
 - Adresse et clé publique dans `.env` (voir `.env.example`). Le fichier `.env` n'est pas versionné.
 - Scripts à exécuter dans l'ordre : `supabase_schema.sql`, `supabase_migration_sprint3.sql`, `supabase_migration_v2.sql`, `supabase_migration_v3.sql`, `supabase_migration_v4.sql`.
 - Activer Authentication > Sign In / Providers > Anonymous.
+
+## Tester sur Android
+Un émulateur `PrixCI_Android11` existe sur le Mac de développement. Le lancer :
+`~/Library/Android/sdk/emulator/emulator -avd PrixCI_Android11`, puis
+`ANDROID_HOME=$HOME/Library/Android/sdk npx expo start --android`.
+Piège connu : sur Android, ne jamais demander une autorisation système (localisation) pendant l'animation d'arrivée d'un écran, sinon l'écran reste invisible.
 
 ## Commandes
 - `npx expo start` : lancer l'application

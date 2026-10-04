@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef, useEffect } from "react";
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
 import { COMMUNES_ABIDJAN, VILLES, villeDeZone } from "@/constants/types";
 
@@ -18,12 +18,33 @@ export default function SelecteurZone({
 }) {
   const ville = villeDeZone(zone);
 
+  // Amène la ville et la commune choisies dans la partie visible de la ligne
+  const ligneVilles = useRef<ScrollView>(null);
+  const ligneCommunes = useRef<ScrollView>(null);
+  const positions = useRef<Record<string, number>>({});
+  const centrer = () => {
+    const xVille = positions.current[`v:${ville}`];
+    const xCommune = positions.current[`c:${zone}`];
+    if (xVille !== undefined) ligneVilles.current?.scrollTo({ x: Math.max(0, xVille - 12), animated: false });
+    if (xCommune !== undefined) ligneCommunes.current?.scrollTo({ x: Math.max(0, xCommune - 60), animated: false });
+  };
+  useEffect(() => {
+    const t = setTimeout(centrer, 50);
+    return () => clearTimeout(t);
+  }, [zone]);
+
   return (
     <View style={styles.container}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.ligne}>
+      <ScrollView
+        ref={ligneVilles}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.ligne}
+      >
         {VILLES.map((v) => (
           <TouchableOpacity
             key={v}
+            onLayout={(e) => { positions.current[`v:${v}`] = e.nativeEvent.layout.x; }}
             style={[styles.ville, ville === v && styles.villeActive]}
             // Choisir Abidjan garde la commune courante, ou propose Yopougon
             onPress={() => onChange(v === "Abidjan" ? (ville === "Abidjan" ? zone : "Yopougon") : v)}
@@ -34,10 +55,18 @@ export default function SelecteurZone({
       </ScrollView>
 
       {ville === "Abidjan" && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.ligne}>
+        <ScrollView
+          ref={ligneCommunes}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.ligne}
+          onContentSizeChange={centrer}
+          onLayout={centrer}
+        >
           {COMMUNES_ABIDJAN.map((c) => (
             <TouchableOpacity
               key={c}
+              onLayout={(e) => { positions.current[`c:${c}`] = e.nativeEvent.layout.x; }}
               style={[styles.commune, zone === c && styles.communeActive]}
               onPress={() => onChange(c)}
             >

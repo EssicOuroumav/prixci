@@ -24,6 +24,7 @@ import { PRODUITS_REF, LABELS_SOUS_CATEGORIE, LABELS_UNITE, getProduitById } fro
 import { infoTypeLieu, villeDeZone } from "@/constants/types";
 import Icone from "@/components/Icone";
 import SelecteurZone from "@/components/SelecteurZone";
+import { HAUT_ECRAN } from "@/constants/layout";
 
 // ============================================================
 // FAIRE MON MARCHÉ
@@ -240,7 +241,7 @@ export default function MarcheScreen() {
             <Icone nom="storefront-outline" taille={38} couleur="#B8C4BC" />
             <Text style={styles.videTitre}>Aucun commerce vérifié pour ces produits</Text>
             <Text style={styles.videTexte}>
-              Personne n'a encore signalé ces prix à {communeSelectionnee}. Les prix officiels ci-dessous te disent quoi payer. En rentrant du marché, signale les prix que tu as vus : tu aideras les autres mamans.
+              Personne n'a encore signalé ces prix à {communeSelectionnee}. Les prix officiels ci-dessous te disent quoi payer. En rentrant du marché, signale les prix que tu as vus : tu aideras les autres familles.
             </Text>
             <TouchableOpacity style={styles.btnContour} onPress={() => router.push("/(tabs)/signaler")}>
               <Text style={styles.btnContourTexte}>Signaler un prix</Text>
@@ -361,7 +362,7 @@ export default function MarcheScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F5F7F5" },
-  header: { backgroundColor: VERT, paddingHorizontal: 20, paddingTop: 56, paddingBottom: 16 },
+  header: { backgroundColor: VERT, paddingHorizontal: 20, paddingTop: HAUT_ECRAN, paddingBottom: 16 },
   back: { color: "rgba(255,255,255,0.85)", fontSize: 14, marginBottom: 8 },
   titre: { fontSize: 22, fontWeight: "800", color: "#FFFFFF" },
   sousTitre: { fontSize: 13, color: "rgba(255,255,255,0.8)", marginTop: 3 },

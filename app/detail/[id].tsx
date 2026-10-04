@@ -30,6 +30,7 @@ import { MOTIFS_ABUS, signalerAbus } from "@/services/abus";
 import { useAppStore } from "@/stores/useAppStore";
 import BoutonsValidation from "@/components/BoutonsValidation";
 import { Signalement } from "@/constants/types";
+import { HAUT_ECRAN } from "@/constants/layout";
 
 // ============================================================
 // ÉCRAN DÉTAIL D'UN SIGNALEMENT
@@ -893,7 +894,7 @@ const styles = StyleSheet.create({
   retourBtnText: { color: "#FFFFFF", fontWeight: "700" },
   header: {
     backgroundColor: VERT,
-    paddingTop: 56,
+    paddingTop: HAUT_ECRAN,
     paddingBottom: 16,
     paddingHorizontal: 20,
     gap: 2,

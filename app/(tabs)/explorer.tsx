@@ -30,6 +30,7 @@ import { infoTypeLieu, infoMoment, Signalement } from "@/constants/types";
 import BoutonsValidation from "@/components/BoutonsValidation";
 import Icone from "@/components/Icone";
 import SelecteurCategorie from "@/components/SelecteurCategorie";
+import { HAUT_ECRAN } from "@/constants/layout";
 
 // ─── Constantes visuelles ─────────────────────────────────
 const VERT       = "#0A5F38";
@@ -759,7 +760,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: GRIS },
   header: {
     backgroundColor: VERT,
-    paddingTop: 56,
+    paddingTop: HAUT_ECRAN,
     paddingBottom: 16,
     paddingHorizontal: 20,
     gap: 2,

@@ -36,6 +36,7 @@ import {
   LABELS_SOUS_CATEGORIE,
   LABELS_UNITE,
 } from "@/constants/produits";
+import { HAUT_ECRAN } from "@/constants/layout";
 
 // Lieux proposés pour un produit alimentaire (les transports partent d'une gare ou d'un arrêt)
 const TYPES_LIEU_ALIMENTATION = TYPES_LIEU.filter((t) => t.id !== "gare_routiere");
@@ -531,7 +532,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F5F7F5" },
   header: {
     backgroundColor: VERT,
-    paddingTop: 56,
+    paddingTop: HAUT_ECRAN,
     paddingBottom: 16,
     paddingHorizontal: 20,
     gap: 8,

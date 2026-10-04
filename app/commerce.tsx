@@ -8,6 +8,7 @@ import { SEUIL_APPUIS } from "@/services/scoring";
 import { infoTypeLieu } from "@/constants/types";
 import { LABELS_UNITE } from "@/constants/produits";
 import Icone from "@/components/Icone";
+import { HAUT_ECRAN } from "@/constants/layout";
 
 // ============================================================
 // FICHE D'UN COMMERCE
@@ -200,7 +201,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F5F7F5" },
   centered: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12, padding: 32, backgroundColor: "#F5F7F5" },
   introuvable: { fontSize: 14, color: "#666666", textAlign: "center" },
-  header: { backgroundColor: VERT, paddingHorizontal: 20, paddingTop: 56, paddingBottom: 16 },
+  header: { backgroundColor: VERT, paddingHorizontal: 20, paddingTop: HAUT_ECRAN, paddingBottom: 16 },
   back: { color: "rgba(255,255,255,0.8)", fontSize: 14, marginBottom: 8 },
   titre: { fontSize: 22, fontWeight: "800", color: "#FFFFFF" },
   sousTitre: { fontSize: 13, color: "rgba(255,255,255,0.8)", marginTop: 4 },

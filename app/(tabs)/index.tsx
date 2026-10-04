@@ -26,6 +26,7 @@ import { LABELS_UNITE, getProduitById } from "@/constants/produits";
 import Icone from "@/components/Icone";
 import SelecteurCategorie from "@/components/SelecteurCategorie";
 import SelecteurZone from "@/components/SelecteurZone";
+import { HAUT_ECRAN } from "@/constants/layout";
 
 // ============================================================
 // ACCUEIL
@@ -385,15 +386,10 @@ export default function HomeScreen() {
               )}
             </>
           )}
-          <View style={{ height: 90 }} />
+          <View style={{ height: 30 }} />
         </ScrollView>
       )}
 
-      {/* Bouton Signaler */}
-      <TouchableOpacity style={styles.fab} onPress={() => router.push("/(tabs)/signaler")}>
-        <Icone nom="add" taille={20} couleur="#FFFFFF" />
-        <Text style={styles.fabText}>Signaler</Text>
-      </TouchableOpacity>
     </View>
   );
 }
@@ -402,7 +398,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F5F7F5" },
   header: {
     backgroundColor: VERT,
-    paddingTop: 56,
+    paddingTop: HAUT_ECRAN,
     paddingBottom: 14,
     paddingHorizontal: 20,
     flexDirection: "row",

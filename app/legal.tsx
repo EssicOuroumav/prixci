@@ -2,6 +2,7 @@ import React from "react";
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { SEUIL_APPUIS } from "@/services/scoring";
+import { HAUT_ECRAN } from "@/constants/layout";
 
 // ============================================================
 // CONDITIONS D'UTILISATION ET CONFIDENTIALITÉ
@@ -77,7 +78,7 @@ const VERT = "#0A5F38";
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F5F7F5" },
-  header: { backgroundColor: VERT, paddingHorizontal: 20, paddingTop: 56, paddingBottom: 16 },
+  header: { backgroundColor: VERT, paddingHorizontal: 20, paddingTop: HAUT_ECRAN, paddingBottom: 16 },
   back: { color: "rgba(255,255,255,0.8)", fontSize: 14, marginBottom: 8 },
   title: { fontSize: 20, fontWeight: "800", color: "#FFFFFF" },
   content: { padding: 16, gap: 10 },

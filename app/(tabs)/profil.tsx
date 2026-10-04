@@ -14,6 +14,7 @@ import { getMesEnseignes, infoTypeEnseigne, Enseigne } from "@/services/enseigne
 import { LABELS_UNITE } from "@/constants/produits";
 import { Signalement, NomIcone } from "@/constants/types";
 import Icone from "@/components/Icone";
+import { HAUT_ECRAN } from "@/constants/layout";
 
 function statutSignalement(s: Signalement): { label: string; icone: NomIcone; couleur: string } {
   if (estVerifie(s.appuis)) {
@@ -221,7 +222,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F5F7F5" },
   header: {
     backgroundColor: VERT,
-    paddingTop: 56,
+    paddingTop: HAUT_ECRAN,
     paddingBottom: 16,
     paddingHorizontal: 20,
   },
