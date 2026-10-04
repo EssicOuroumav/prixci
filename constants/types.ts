@@ -2,6 +2,12 @@
 // TYPES CENTRAUX — PrixCI
 // ============================================================
 
+import type { ComponentProps } from "react";
+import type Ionicons from "@expo/vector-icons/Ionicons";
+
+/** Nom d'une icône du jeu Ionicons (voir components/Icone.tsx). */
+export type NomIcone = ComponentProps<typeof Ionicons>["name"];
+
 export type Categorie = "alimentation" | "transport";
 
 export type UniteAlimentation =
@@ -116,16 +122,20 @@ export type TypeLieu =
   | "gare_routiere"
   | "autre";
 
-export const TYPES_LIEU: { id: TypeLieu; label: string; emoji: string }[] = [
-  { id: "marche_traditionnel", label: "Marché traditionnel", emoji: "🏪" },
-  { id: "supermarche",         label: "Supermarché",         emoji: "🏬" },
-  { id: "boutique_quartier",   label: "Boutique de quartier",emoji: "🏠" },
-  { id: "vendeur_ambulant",    label: "Vendeur ambulant",    emoji: "🛒" },
-  { id: "bord_route",          label: "Bord de route",       emoji: "🛣️" },
-  { id: "station_service",     label: "Station-service",     emoji: "⛽" },
-  { id: "gare_routiere",       label: "Gare / arrêt",        emoji: "🚏" },
-  { id: "autre",               label: "Autre",               emoji: "📍" },
+export const TYPES_LIEU: { id: TypeLieu; label: string; icone: NomIcone }[] = [
+  { id: "marche_traditionnel", label: "Marché traditionnel", icone: "storefront-outline" },
+  { id: "supermarche",         label: "Supermarché",         icone: "cart-outline" },
+  { id: "boutique_quartier",   label: "Boutique de quartier",icone: "home-outline" },
+  { id: "vendeur_ambulant",    label: "Vendeur ambulant",    icone: "walk-outline" },
+  { id: "bord_route",          label: "Bord de route",       icone: "trail-sign-outline" },
+  { id: "station_service",     label: "Station-service",     icone: "speedometer-outline" },
+  { id: "gare_routiere",       label: "Gare / arrêt",        icone: "bus-outline" },
+  { id: "autre",               label: "Autre",               icone: "location-outline" },
 ];
+
+export function infoTypeLieu(type: string) {
+  return TYPES_LIEU.find((t) => t.id === type) ?? TYPES_LIEU[TYPES_LIEU.length - 1];
+}
 
 // ─── Communes d'Abidjan ────────────────────────────────────
 export const COMMUNES_ABIDJAN = [

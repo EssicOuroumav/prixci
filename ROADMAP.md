@@ -14,11 +14,10 @@ Mise à jour : 4 octobre 2026. Le détail des fonctionnalités est dans `CAHIER_
 Ces corrections sont vérifiées par le typage, la compilation du bundle et des tests de base de données. Elles restent à valider sur un téléphone.
 
 ## À faire avant publication
-1. Remettre en service le projet Supabase (l'adresse du fichier `.env` ne répond plus), activer l'auth anonyme et exécuter les trois scripts SQL dans l'ordre
+1. Supabase est en service et les scripts sont exécutés ; un projet gratuit se remet en pause après une semaine sans activité
 2. Tester le parcours complet sur un téléphone Android et un iPhone
-3. Remplacer l'icône provisoire (`assets/`)
-4. Faire relire les conditions d'utilisation (`app/legal.tsx`) et y mettre une adresse de contact
-5. Créer les comptes Google Play et Apple, puis lancer les builds (`eas build`)
+3. Faire relire les conditions d'utilisation (`app/legal.tsx`) et y mettre une adresse de contact
+4. Créer les comptes Google Play et Apple, puis lancer les builds (`eas build`)
 
 ## Idées pour la suite
 - Tendance des prix sur l'accueil

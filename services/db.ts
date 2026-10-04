@@ -680,6 +680,20 @@ function rowToValidation(r: any): Validation {
   };
 }
 
+/**
+ * Supprime les données de démonstration qu'une ancienne version installait
+ * au premier lancement. Sans effet sur une installation neuve.
+ */
+export async function purgerDonneesDemo(): Promise<void> {
+  const db = await getDb();
+  await db.execAsync(`
+    DELETE FROM validations WHERE signalement_id IN
+      (SELECT id FROM signalements WHERE user_id LIKE 'demo-user-%');
+    DELETE FROM signalements WHERE user_id LIKE 'demo-user-%';
+    DELETE FROM users WHERE id LIKE 'demo-user-%';
+  `);
+}
+
 // ─── Réinitialisation (dev only) ──────────────────────────
 export async function dropAllTables(): Promise<void> {
   const db = await getDb();

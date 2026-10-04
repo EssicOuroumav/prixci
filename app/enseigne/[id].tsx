@@ -25,6 +25,7 @@ import { MOTIFS_ABUS, signalerAbus } from "@/services/abus";
 import { PRODUITS_REF, LABELS_UNITE } from "@/constants/produits";
 import { ProduitRef, Unite } from "@/constants/types";
 import { useAppStore } from "@/stores/useAppStore";
+import Icone from "@/components/Icone";
 
 // ============================================================
 // FICHE D'UNE ENSEIGNE
@@ -161,7 +162,7 @@ export default function EnseigneDetail() {
           <Text style={styles.back}>← Retour</Text>
         </TouchableOpacity>
         <Text style={styles.title} numberOfLines={2}>
-          {enseigne ? `${type.emoji} ${enseigne.nom}` : "Enseigne"}
+          {enseigne ? enseigne.nom : "Enseigne"}
         </Text>
         {enseigne && (
           <Text style={styles.subtitle}>
@@ -185,8 +186,18 @@ export default function EnseigneDetail() {
           <>
             {(enseigne?.adresse || enseigne?.telephone) && (
               <View style={styles.infos}>
-                {enseigne.adresse ? <Text style={styles.infoText}>📍 {enseigne.adresse}</Text> : null}
-                {enseigne.telephone ? <Text style={styles.infoText}>📞 {enseigne.telephone}</Text> : null}
+                {enseigne.adresse ? (
+                  <View style={styles.infoRow}>
+                    <Icone nom="location-outline" taille={15} couleur="#666666" />
+                    <Text style={styles.infoText}>{enseigne.adresse}</Text>
+                  </View>
+                ) : null}
+                {enseigne.telephone ? (
+                  <View style={styles.infoRow}>
+                    <Icone nom="call-outline" taille={15} couleur="#666666" />
+                    <Text style={styles.infoText}>{enseigne.telephone}</Text>
+                  </View>
+                ) : null}
               </View>
             )}
 
@@ -199,7 +210,7 @@ export default function EnseigneDetail() {
             )}
 
             <Text style={styles.sectionTitre}>
-              ✅ Prix officiels ({prix.length})
+              Prix officiels ({prix.length})
             </Text>
 
             {prix.length === 0 ? (
@@ -220,7 +231,7 @@ export default function EnseigneDetail() {
                     <Text style={styles.prix}>{p.prix.toLocaleString("fr-FR")} F</Text>
                     {estProprietaire && (
                       <TouchableOpacity onPress={() => handleSupprimer(p)} hitSlop={10}>
-                        <Text style={styles.supprimer}>🗑</Text>
+                        <Icone nom="trash-outline" taille={20} couleur="#C0392B" />
                       </TouchableOpacity>
                     )}
                   </View>
@@ -312,7 +323,7 @@ export default function EnseigneDetail() {
 
             {!estProprietaire && (
               <TouchableOpacity onPress={demanderMotifAbus} style={styles.abusBtn}>
-                <Text style={styles.abusText}>⚑ Signaler cette enseigne</Text>
+                <Text style={styles.abusText}>Signaler cette enseigne</Text>
               </TouchableOpacity>
             )}
             <View style={{ height: 40 }} />
@@ -333,7 +344,8 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 13, color: "rgba(255,255,255,0.8)", marginTop: 4 },
   content: { flex: 1, padding: 16 },
   infos: { backgroundColor: "#fff", borderRadius: 12, padding: 14, gap: 6, marginBottom: 12 },
-  infoText: { fontSize: 13, color: "#444" },
+  infoRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  infoText: { fontSize: 13, color: "#444", flex: 1 },
   proprietaireBox: { backgroundColor: "#E8F5EE", borderRadius: 12, padding: 12, marginBottom: 12 },
   proprietaireText: { fontSize: 13, color: VERT, lineHeight: 18 },
   sectionTitre: { fontSize: 14, fontWeight: "800", color: "#1A1A1A", marginBottom: 10, marginTop: 4 },

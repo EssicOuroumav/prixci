@@ -7,7 +7,7 @@ import {
   ScrollView,
   StyleSheet,
   ActivityIndicator,
-  SectionList,
+  FlatList,
 } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { useAppStore } from "@/stores/useAppStore";
@@ -25,8 +25,10 @@ import {
 } from "@/services/enseignes";
 import { SEUIL_CONFIRMATIONS } from "@/services/scoring";
 import { LABELS_UNITE } from "@/constants/produits";
-import { COMMUNES_ABIDJAN, TYPES_LIEU, Signalement } from "@/constants/types";
+import { COMMUNES_ABIDJAN, infoTypeLieu, Signalement } from "@/constants/types";
 import BoutonsValidation from "@/components/BoutonsValidation";
+import Icone from "@/components/Icone";
+import SelecteurCategorie from "@/components/SelecteurCategorie";
 
 // ─── Constantes visuelles ─────────────────────────────────
 const VERT       = "#0A5F38";
@@ -44,12 +46,8 @@ function dateRelative(iso: string): string {
   return `${Math.floor(h / 24)}j`;
 }
 
-function emojiTypeLieu(type: string): string {
-  return TYPES_LIEU.find((t) => t.id === type)?.emoji ?? "📍";
-}
-
 function labelTypeLieu(type: string): string {
-  return TYPES_LIEU.find((t) => t.id === type)?.label ?? type;
+  return infoTypeLieu(type).label;
 }
 
 // ─── Composant barre de prix comparative ──────────────────
@@ -114,13 +112,14 @@ function CartePointDeVente({
     <View style={[carteStyles.container, isLeMoinsCher && carteStyles.containerBest]}>
       {isLeMoinsCher && (
         <View style={carteStyles.bestBadge}>
-          <Text style={carteStyles.bestBadgeText}>✓ Moins cher</Text>
+          <Icone nom="checkmark" taille={12} couleur="#FFFFFF" />
+          <Text style={carteStyles.bestBadgeText}>Moins cher</Text>
         </View>
       )}
 
       <View style={carteStyles.header}>
         <View style={carteStyles.lieuInfo}>
-          <Text style={carteStyles.emoji}>{emojiTypeLieu(typeLieu)}</Text>
+          <Icone nom={infoTypeLieu(typeLieu).icone} taille={24} couleur={VERT} />
           <View style={{ flex: 1 }}>
             <Text style={carteStyles.nomLieu} numberOfLines={1}>
               {nomLieu || labelTypeLieu(typeLieu)}
@@ -171,7 +170,7 @@ function CartePointDeVente({
           onPress={() => onVoirDetail(pdv.signalementId!)}
         >
           <Text style={carteStyles.detailBtnText}>
-            📈 Voir l'historique et l'évolution du prix →
+            Voir l'historique et l'évolution du prix →
           </Text>
         </TouchableOpacity>
       )}
@@ -190,7 +189,7 @@ function CartePrixOfficiel({
   const type = infoTypeEnseigne(officiel.enseigneType);
   return (
     <TouchableOpacity style={officielStyles.container} onPress={onPress} activeOpacity={0.7}>
-      <Text style={carteStyles.emoji}>{type.emoji}</Text>
+      <Icone nom={type.icone} taille={24} couleur={VERT} />
       <View style={{ flex: 1 }}>
         <Text style={carteStyles.nomLieu} numberOfLines={1}>{officiel.enseigneNom}</Text>
         <Text style={carteStyles.typeLieu}>
@@ -202,7 +201,10 @@ function CartePrixOfficiel({
           {officiel.prix.toLocaleString("fr-FR")} F
           <Text style={carteStyles.unite}> /{LABELS_UNITE[officiel.unite] ?? officiel.unite}</Text>
         </Text>
-        <Text style={officielStyles.badge}>✅ Officiel</Text>
+        <View style={officielStyles.badgeRow}>
+          <Icone nom="checkmark-circle" taille={12} couleur={VERT} />
+          <Text style={officielStyles.badge}>Officiel</Text>
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -221,7 +223,8 @@ const officielStyles = StyleSheet.create({
     borderLeftColor: VERT,
   },
   prix: { fontSize: 18, fontWeight: "800", color: "#1A1A1A" },
-  badge: { fontSize: 11, color: VERT, fontWeight: "700", marginTop: 2 },
+  badgeRow: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: 2 },
+  badge: { fontSize: 11, color: VERT, fontWeight: "700" },
 });
 
 // ─── Carte d'un signalement encore à confirmer ────────────
@@ -241,7 +244,7 @@ function CarteEnAttente({
     <View style={[carteStyles.container, attenteStyles.container]}>
       <View style={carteStyles.header}>
         <View style={carteStyles.lieuInfo}>
-          <Text style={carteStyles.emoji}>{emojiTypeLieu(signalement.typeLieu)}</Text>
+          <Icone nom={infoTypeLieu(signalement.typeLieu).icone} taille={24} couleur={VERT} />
           <View style={{ flex: 1 }}>
             <Text style={carteStyles.nomLieu} numberOfLines={1}>
               {signalement.nomLieu || labelTypeLieu(signalement.typeLieu)}
@@ -313,6 +316,9 @@ const carteStyles = StyleSheet.create({
     backgroundColor: "#FAFFFC",
   },
   bestBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
     alignSelf: "flex-start",
     backgroundColor: VERT,
     borderRadius: 10,
@@ -410,10 +416,10 @@ function ProduitResume({
           <>
             <Text style={resumeStyles.prix}>{prixMoyen.toLocaleString("fr-FR")} F</Text>
             <Text style={resumeStyles.unite}>/{LABELS_UNITE[unite] ?? unite}</Text>
-            {alerteEcart && <Text style={resumeStyles.alerte}>⚠</Text>}
+            {alerteEcart && <Icone nom="warning-outline" taille={14} couleur="#D4820A" />}
           </>
         ) : (
-          <Text style={resumeStyles.aConfirmer}>🗳 À confirmer</Text>
+          <Text style={resumeStyles.aConfirmer}>À confirmer</Text>
         )}
         <Text style={resumeStyles.chevron}>›</Text>
       </View>
@@ -445,7 +451,7 @@ const resumeStyles = StyleSheet.create({
 
 // ─── ÉCRAN PRINCIPAL ──────────────────────────────────────
 export default function ExplorerScreen() {
-  const { user, communeSelectionnee, setCommuneSelectionnee } = useAppStore();
+  const { user, communeSelectionnee, setCommuneSelectionnee, categorieActive } = useAppStore();
   const router = useRouter();
 
   // ── Mode : liste de produits OU comparaison d'un produit
@@ -458,7 +464,6 @@ export default function ExplorerScreen() {
   const [produits, setProduits] = useState<PrixAgregeLocal[]>([]);
   const [loading, setLoading] = useState(true);
   const [recherche, setRecherche] = useState("");
-  const [categorieFiltre, setCategorieFiltre] = useState<"alimentation" | "transport" | null>(null);
 
   // ── Données comparaison
   const [pointsDeVente, setPointsDeVente] = useState<PointDeVente[]>([]);
@@ -535,17 +540,14 @@ export default function ExplorerScreen() {
     });
   };
 
-  // ─── Filtres liste, puis séparation alimentation / transport ──
+  // ─── Un seul univers à la fois (alimentation OU transport), puis recherche ──
   const terme = recherche.trim().toLowerCase();
+  const estTransport = categorieActive === "transport";
   const produitsFiltres = produits.filter(
     (p) =>
-      (!categorieFiltre || p.categorie === categorieFiltre) &&
+      p.categorie === categorieActive &&
       (!terme || p.produitNom.toLowerCase().includes(terme))
   );
-  const sections = [
-    { titre: "🛒 Alimentation", data: produitsFiltres.filter((p) => p.categorie === "alimentation") },
-    { titre: "🚌 Transport", data: produitsFiltres.filter((p) => p.categorie === "transport") },
-  ].filter((section) => section.data.length > 0);
 
   // ─── RENDER : vue comparaison ─────────────────────────
   if (produitSelectionne) {
@@ -584,7 +586,7 @@ export default function ExplorerScreen() {
           </View>
         ) : rienAAfficher ? (
           <View style={styles.centered}>
-            <Text style={styles.emptyEmoji}>🔍</Text>
+            <Icone nom="search-outline" taille={44} couleur="#B8C4BC" />
             <Text style={styles.emptyTitle}>Aucune comparaison disponible</Text>
             <Text style={styles.emptySub}>
               Sois le premier à signaler ce produit à {communeSelectionnee}.
@@ -595,7 +597,7 @@ export default function ExplorerScreen() {
             {economie > 0 && (
               <View style={styles.economieBanner}>
                 <Text style={styles.economieTitle}>
-                  💰 Économie potentielle : {economie.toLocaleString("fr-FR")} FCFA
+                  Économie potentielle : {economie.toLocaleString("fr-FR")} FCFA
                 </Text>
                 <Text style={styles.economieSub}>
                   Entre le moins cher et le plus cher à {communeSelectionnee}
@@ -606,7 +608,7 @@ export default function ExplorerScreen() {
             {/* ── Prix officiels des enseignes ─────────── */}
             {officiels.length > 0 && (
               <>
-                <Text style={styles.sectionTitre}>✅ Prix officiels des enseignes</Text>
+                <Text style={styles.sectionTitre}>Prix officiels des enseignes</Text>
                 {officiels.map((o) => (
                   <CartePrixOfficiel
                     key={`${o.enseigneId}-${o.unite}`}
@@ -628,7 +630,7 @@ export default function ExplorerScreen() {
             {pointsDeVente.length > 0 && (
               <>
                 <Text style={styles.sectionTitre}>
-                  👥 Prix signalés par les citoyens ({pointsDeVente.length} lieu{pointsDeVente.length > 1 ? "x" : ""})
+                  Prix signalés par les citoyens ({pointsDeVente.length} lieu{pointsDeVente.length > 1 ? "x" : ""})
                 </Text>
                 {pointsDeVente.map((pdv, index) => (
                   <CartePointDeVente
@@ -647,7 +649,7 @@ export default function ExplorerScreen() {
             {enAttente.length > 0 && (
               <>
                 <Text style={styles.sectionTitre}>
-                  🗳 À confirmer ({enAttente.length})
+                  À confirmer ({enAttente.length})
                 </Text>
                 <Text style={styles.sectionLabel}>
                   Tu as vu ce prix ? Confirme-le. Il compte dans les moyennes après {SEUIL_CONFIRMATIONS} confirmations.
@@ -666,7 +668,7 @@ export default function ExplorerScreen() {
 
             <View style={styles.noteBox}>
               <Text style={styles.noteText}>
-                ℹ Les prix des citoyens sont des moyennes sur 30 jours, calculées sur les signalements confirmés au moins {SEUIL_CONFIRMATIONS} fois. Les prix officiels sont publiés par les enseignes elles-mêmes.
+                Les prix des citoyens sont des moyennes sur 30 jours, calculées sur les signalements confirmés au moins {SEUIL_CONFIRMATIONS} fois. Les prix officiels sont publiés par les enseignes elles-mêmes.
               </Text>
             </View>
             <View style={{ height: 40 }} />
@@ -704,11 +706,14 @@ export default function ExplorerScreen() {
         ))}
       </ScrollView>
 
-      {/* Recherche par nom de produit */}
+      <SelecteurCategorie />
+
+      {/* Recherche par nom */}
       <View style={styles.rechercheRow}>
+        <Icone nom="search-outline" taille={16} couleur="#999999" />
         <TextInput
           style={styles.searchInput}
-          placeholder="Rechercher un produit ou un trajet…"
+          placeholder={estTransport ? "Rechercher un trajet…" : "Rechercher un produit…"}
           value={recherche}
           onChangeText={setRecherche}
           placeholderTextColor="#AAAAAA"
@@ -717,50 +722,42 @@ export default function ExplorerScreen() {
         />
       </View>
 
-      {/* Filtres catégorie */}
-      <View style={styles.filtreRow}>
-        {([null, "alimentation", "transport"] as const).map((cat) => (
-          <TouchableOpacity
-            key={cat ?? "tout"}
-            style={[styles.filtreBtn, categorieFiltre === cat && styles.filtreBtnActive]}
-            onPress={() => setCategorieFiltre(cat)}
-          >
-            <Text style={[styles.filtreBtnText, categorieFiltre === cat && styles.filtreBtnTextActive]}>
-              {cat === null ? "Tout" : cat === "alimentation" ? "🛒 Alimentation" : "🚌 Transport"}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
       {/* Liste */}
       {loading ? (
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={VERT} />
         </View>
-      ) : sections.length === 0 ? (
+      ) : produitsFiltres.length === 0 ? (
         <View style={styles.centered}>
-          <Text style={styles.emptyEmoji}>📭</Text>
+          <Icone
+            nom={terme ? "search-outline" : estTransport ? "bus-outline" : "basket-outline"}
+            taille={44}
+            couleur="#B8C4BC"
+          />
           <Text style={styles.emptyTitle}>
-            {terme ? "Aucun résultat" : `Aucun prix signalé à ${communeSelectionnee}`}
+            {terme
+              ? "Aucun résultat"
+              : estTransport
+              ? `Aucun tarif de transport signalé à ${communeSelectionnee}`
+              : `Aucun prix alimentaire signalé à ${communeSelectionnee}`}
           </Text>
           <Text style={styles.emptySub}>
             {terme
               ? `Rien ne correspond à « ${recherche.trim()} » dans cette commune.`
-              : "Commence par signaler des prix dans cette commune."}
+              : "Sois le premier à en signaler un dans cette commune."}
           </Text>
         </View>
       ) : (
-        <SectionList
-          sections={sections}
+        <FlatList
+          data={produitsFiltres}
           keyExtractor={(item) => `${item.produitId}-${item.unite}`}
           contentContainerStyle={{ padding: 12, paddingBottom: 40 }}
-          stickySectionHeadersEnabled={false}
           keyboardShouldPersistTaps="handled"
-          renderSectionHeader={({ section }) => (
-            <Text style={styles.sectionTitre}>
-              {section.titre} · {section.data.length}
+          ListHeaderComponent={
+            <Text style={styles.sectionLabel}>
+              {produitsFiltres.length} {estTransport ? "trajet" : "produit"}{produitsFiltres.length > 1 ? "s" : ""} à {communeSelectionnee}
             </Text>
-          )}
+          }
           renderItem={({ item }) => (
             <ProduitResume
               produit={item}
@@ -798,9 +795,16 @@ const styles = StyleSheet.create({
   chipText: { fontSize: 12, color: "#555555", fontWeight: "500" },
   chipTextActive: { color: "#FFFFFF", fontWeight: "700" },
   rechercheRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginHorizontal: 12,
+    marginTop: 10,
     paddingHorizontal: 12,
-    paddingTop: 8,
     backgroundColor: "#FFFFFF",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#E8E8E8",
   },
   sectionTitre: {
     fontSize: 14,
@@ -829,10 +833,8 @@ const styles = StyleSheet.create({
   filtreBtnText: { fontSize: 12, color: "#555555", fontWeight: "600" },
   filtreBtnTextActive: { color: "#FFFFFF" },
   searchInput: {
-    backgroundColor: "#F5F5F5",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
+    flex: 1,
+    paddingVertical: 10,
     fontSize: 14,
     color: "#1A1A1A",
   },

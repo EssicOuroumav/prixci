@@ -75,7 +75,7 @@ Formulaire en 3 étapes.
 |---|---|---|
 | F17 | Recherche d'un produit | Fait |
 | F18 | Comparaison des prix par point de vente, avec badge « Moins cher » | Fait |
-| F19 | Séparation en deux sections : alimentation et transport | Fait |
+| F19 | Alimentation et transport séparés : un sélecteur commun à l'accueil, Explorer et au formulaire, jamais de liste mélangée | Fait |
 | F20 | Filtre par nom de produit | Fait |
 | F21 | Vote directement depuis la liste | Fait (dans la file « À confirmer » de chaque produit) |
 | F22 | Lien « voir historique » | Fait |
@@ -122,7 +122,7 @@ Formulaire en 3 étapes.
 | F43 | Pseudonyme, score, badge, nombre de signalements et de validations reçues | Fait |
 | F44 | Affichage différent pour un consommateur et pour une enseigne | Fait (compte enseigne : nom, badge et accès à la gestion des prix) |
 | F45 | Historique de mes signalements | Fait (avec statut : vérifié, à confirmer, en attente de réseau) |
-| F46 | Mode démo : recharger 61 signalements d'exemple, vider les données | Fait (présent seulement en développement, absent de la version publiée) |
+| F46 | Application vide au premier lancement (données de démonstration supprimées) | Fait |
 
 ### 3.10 Hors ligne et synchronisation
 | # | Fonctionnalité | Statut |
@@ -174,7 +174,7 @@ Vues serveur : `prix_agreges` (moyennes sur 30 jours) et `comparaison_par_lieu` 
 | Sécurité | Droits d'accès par ligne sur toutes les tables ; un utilisateur n'écrit que ses propres données |
 | Vie privée | Aucune donnée personnelle ; pseudonymes automatiques ; position utilisée seulement avec accord |
 | Qualité | Zéro erreur TypeScript ; code versionné avec git |
-| Identité | Vert `#0A5F38`, identifiant `ci.prixci.app` ; icône et écran de démarrage à produire |
+| Identité | Vert `#0A5F38`, identifiant `ci.prixci.app` ; logo fourni par le porteur du projet ; icônes Ionicons, aucun emoji |
 
 ---
 

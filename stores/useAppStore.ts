@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { UserProfile, Commune, PrixAgrege } from "@/constants/types";
+import { UserProfile, Commune, PrixAgrege, Categorie } from "@/constants/types";
 import type { SyncStatus } from "@/services/sync";
 
 // ============================================================
@@ -15,6 +15,10 @@ interface AppState {
   // ─── Commune sélectionnée ──────────────────────────────
   communeSelectionnee: Commune;
   setCommuneSelectionnee: (commune: Commune) => void;
+
+  // ─── Univers affiché : alimentation ou transport, jamais mélangés ──
+  categorieActive: Categorie;
+  setCategorieActive: (categorie: Categorie) => void;
 
   // ─── Données agrégées (écran explorer) ────────────────
   prixAgreges: PrixAgrege[];
@@ -55,6 +59,9 @@ export const useAppStore = create<AppState>((set) => ({
 
   communeSelectionnee: "Yopougon",
   setCommuneSelectionnee: (commune) => set({ communeSelectionnee: commune }),
+
+  categorieActive: "alimentation",
+  setCategorieActive: (categorieActive) => set({ categorieActive }),
 
   prixAgreges: [],
   setPrixAgreges: (prixAgreges) => set({ prixAgreges }),

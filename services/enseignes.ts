@@ -1,12 +1,13 @@
 import { supabase } from "./auth";
+import { NomIcone } from "@/constants/types";
 
 export type TypeEnseigne = "supermarche" | "boutique" | "pharmacie" | "marche";
 
-export const TYPES_ENSEIGNE: { value: TypeEnseigne; label: string; emoji: string }[] = [
-  { value: "supermarche", label: "Supermarché", emoji: "🏬" },
-  { value: "boutique", label: "Boutique", emoji: "🏠" },
-  { value: "pharmacie", label: "Pharmacie", emoji: "💊" },
-  { value: "marche", label: "Marché", emoji: "🏪" },
+export const TYPES_ENSEIGNE: { value: TypeEnseigne; label: string; icone: NomIcone }[] = [
+  { value: "supermarche", label: "Supermarché", icone: "cart-outline" },
+  { value: "boutique", label: "Boutique", icone: "home-outline" },
+  { value: "pharmacie", label: "Pharmacie", icone: "medkit-outline" },
+  { value: "marche", label: "Marché", icone: "storefront-outline" },
 ];
 
 export function infoTypeEnseigne(type: string) {

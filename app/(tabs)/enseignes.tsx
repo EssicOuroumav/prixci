@@ -4,6 +4,7 @@ import { router, useFocusEffect } from "expo-router";
 import { getEnseignesByCommune, infoTypeEnseigne, Enseigne } from "@/services/enseignes";
 import { COMMUNES_ABIDJAN } from "@/constants/types";
 import { useAppStore } from "@/stores/useAppStore";
+import Icone from "@/components/Icone";
 
 export default function EnseignesScreen() {
   // Même commune que sur les autres onglets
@@ -58,13 +59,13 @@ export default function EnseignesScreen() {
           <ActivityIndicator color="#0A5F38" style={{ marginTop: 40 }} />
         ) : horsLigne ? (
           <View style={styles.empty}>
-            <Text style={styles.emptyEmoji}>📵</Text>
+            <Icone nom="cloud-offline-outline" taille={48} couleur="#B8C4BC" />
             <Text style={styles.emptyTitle}>Connexion nécessaire</Text>
             <Text style={styles.emptyText}>Les enseignes s'affichent dès que le réseau revient. Tire vers le bas pour réessayer.</Text>
           </View>
         ) : enseignes.length === 0 ? (
           <View style={styles.empty}>
-            <Text style={styles.emptyEmoji}>🏪</Text>
+            <Icone nom="storefront-outline" taille={48} couleur="#B8C4BC" />
             <Text style={styles.emptyTitle}>Aucune enseigne à {commune}</Text>
             <Text style={styles.emptyText}>Soyez le premier à inscrire votre commerce !</Text>
           </View>
@@ -72,7 +73,7 @@ export default function EnseignesScreen() {
           enseignes.map((e) => (
             <TouchableOpacity key={e.id} style={styles.card} onPress={() => router.push({ pathname: "/enseigne/[id]", params: { id: e.id } })}>
               <View style={styles.cardLeft}>
-                <Text style={styles.cardEmoji}>{infoTypeEnseigne(e.type).emoji}</Text>
+                <Icone nom={infoTypeEnseigne(e.type).icone} taille={28} couleur="#0A5F38" />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.cardNom} numberOfLines={1}>{e.nom}</Text>
                   <Text style={styles.cardType}>{infoTypeEnseigne(e.type).label} · {e.commune}</Text>
@@ -80,7 +81,7 @@ export default function EnseignesScreen() {
                 </View>
               </View>
               <View style={styles.badge}>
-                <Text style={styles.badgeText}>{e.ownerId === user?.id ? "Mon enseigne" : "✅ Officiel"}</Text>
+                <Text style={styles.badgeText}>{e.ownerId === user?.id ? "Mon enseigne" : "Officiel"}</Text>
               </View>
             </TouchableOpacity>
           ))
@@ -114,7 +115,7 @@ const styles = StyleSheet.create({
   badgeText: { fontSize: 12, color: "#0A5F38", fontWeight: "600" },
   empty: { alignItems: "center", paddingTop: 60 },
   emptyEmoji: { fontSize: 48, marginBottom: 16 },
-  emptyTitle: { fontSize: 18, fontWeight: "600", color: "#333", marginBottom: 8 },
+  emptyTitle: { fontSize: 18, fontWeight: "600", color: "#333", marginBottom: 8, marginTop: 16 },
   emptyText: { fontSize: 14, color: "#666", textAlign: "center" },
   btnInscription: { backgroundColor: "#0A5F38", borderRadius: 14, padding: 16, alignItems: "center", marginTop: 16, marginBottom: 32 },
   btnInscriptionText: { color: "#fff", fontSize: 16, fontWeight: "700" },

@@ -7,14 +7,17 @@ import {
   StyleSheet,
   RefreshControl,
   ActivityIndicator,
+  Image,
 } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { useAppStore } from "@/stores/useAppStore";
 import { getPrixAgreges } from "@/services/db";
 import { syncAvecStore } from "@/services/sync";
-import { COMMUNES_ABIDJAN, Unite } from "@/constants/types";
+import { COMMUNES_ABIDJAN, Unite, NomIcone } from "@/constants/types";
 import { LABELS_UNITE, getProduitById } from "@/constants/produits";
 import { SEUIL_CONFIRMATIONS } from "@/services/scoring";
+import Icone from "@/components/Icone";
+import SelecteurCategorie from "@/components/SelecteurCategorie";
 
 // ─── Composant carte prix ──────────────────────────────────
 function PrixCard({
@@ -63,7 +66,8 @@ function PrixCard({
         </Text>
         {alerteEcart && (
           <View style={styles.alerteBadge}>
-            <Text style={styles.alerteText}>⚠ Écart</Text>
+            <Icone nom="warning-outline" taille={12} couleur="#D4820A" />
+            <Text style={styles.alerteText}>Écart</Text>
           </View>
         )}
       </View>
@@ -101,6 +105,7 @@ export default function HomeScreen() {
     setPrixAgreges,
     syncStatus,
     isInitialized,
+    categorieActive,
   } = useAppStore();
 
   const [refreshing, setRefreshing] = useState(false);
@@ -141,29 +146,41 @@ export default function HomeScreen() {
   }, [chargerDonnees]);
 
   // Seuls les prix vérifiés par la communauté sont affichés ici
-  const prixVerifies = prixAgreges.filter((p) => p.prixMoyen !== null);
-  const nbEnAttente = prixAgreges.reduce((n, p) => n + p.nbEnAttente, 0);
+  // Alimentation et transport ne sont jamais mélangés : on n'affiche que l'univers choisi
+  const prixCategorie = prixAgreges.filter((p) => p.categorie === categorieActive);
+  const prixVerifies = prixCategorie.filter((p) => p.prixMoyen !== null);
+  const nbEnAttente = prixCategorie.reduce((n, p) => n + p.nbEnAttente, 0);
+  const estTransport = categorieActive === "transport";
 
-  const syncIndicator = () => {
-    if (syncStatus === "syncing") return "🔄 Synchronisation…";
-    if (syncStatus === "offline") return "📵 Hors ligne";
-    if (syncStatus === "success") return "✓ Synchronisé";
-    if (syncStatus === "error") return "⚠ Synchronisation incomplète";
+  const syncIndicator = (): { icone: NomIcone; texte: string } | null => {
+    if (syncStatus === "syncing") return { icone: "sync-outline", texte: "Synchronisation…" };
+    if (syncStatus === "offline") return { icone: "cloud-offline-outline", texte: "Hors ligne" };
+    if (syncStatus === "success") return { icone: "checkmark-circle-outline", texte: "Synchronisé" };
+    if (syncStatus === "error") return { icone: "alert-circle-outline", texte: "Synchro incomplète" };
     return null;
   };
+  const sync = syncIndicator();
 
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>PrixCI</Text>
-          <Text style={styles.headerSub}>La transparence des prix à Abidjan</Text>
+        <View style={styles.headerMarque}>
+          <Image source={require("../../assets/logo-mark.png")} style={styles.logo} />
+          <View>
+            <Text style={styles.headerTitle}>PrixCI</Text>
+            <Text style={styles.headerSub}>La transparence des prix à Abidjan</Text>
+          </View>
         </View>
-        {syncIndicator() && (
-          <Text style={styles.syncIndicator}>{syncIndicator()}</Text>
+        {sync && (
+          <View style={styles.syncRow}>
+            <Icone nom={sync.icone} taille={13} couleur="rgba(255,255,255,0.85)" />
+            <Text style={styles.syncIndicator}>{sync.texte}</Text>
+          </View>
         )}
       </View>
+
+      <SelecteurCategorie />
 
       {/* Sélecteur de commune */}
       <ScrollView
@@ -218,7 +235,7 @@ export default function HomeScreen() {
               onPress={() => router.push("/(tabs)/explorer")}
             >
               <Text style={styles.attenteTitle}>
-                🗳 {nbEnAttente} prix à confirmer à {communeSelectionnee}
+                {nbEnAttente} {estTransport ? "tarif" : "prix"}{estTransport && nbEnAttente > 1 ? "s" : ""} à confirmer à {communeSelectionnee}
               </Text>
               <Text style={styles.attenteSub}>
                 Un prix devient public après {SEUIL_CONFIRMATIONS} confirmations. Vote dans Explorer →
@@ -228,14 +245,22 @@ export default function HomeScreen() {
 
           {prixVerifies.length === 0 ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyEmoji}>📊</Text>
+              <Icone
+                nom={estTransport ? "bus-outline" : "basket-outline"}
+                taille={48}
+                couleur="#B8C4BC"
+              />
               <Text style={styles.emptyTitle}>
-                Aucun prix vérifié à {communeSelectionnee}
+                {estTransport
+                  ? `Aucun tarif de transport vérifié à ${communeSelectionnee}`
+                  : `Aucun prix alimentaire vérifié à ${communeSelectionnee}`}
               </Text>
               <Text style={styles.emptySubtitle}>
                 {nbEnAttente > 0
-                  ? "Des prix attendent ta confirmation dans Explorer."
-                  : "Sois le premier à signaler un prix dans cette commune !"}
+                  ? "Des signalements attendent ta confirmation dans Explorer."
+                  : estTransport
+                  ? "Sois le premier à signaler le tarif d'un trajet dans cette commune."
+                  : "Sois le premier à signaler un prix dans cette commune."}
               </Text>
               <TouchableOpacity
                 style={styles.ctaButton}
@@ -247,7 +272,7 @@ export default function HomeScreen() {
           ) : (
             <>
               <Text style={styles.sectionTitle}>
-                {prixVerifies.length} produit{prixVerifies.length > 1 ? "s" : ""} vérifié{prixVerifies.length > 1 ? "s" : ""} à {communeSelectionnee}
+                {prixVerifies.length} {estTransport ? "trajet" : "produit"}{prixVerifies.length > 1 ? "s" : ""} vérifié{prixVerifies.length > 1 ? "s" : ""} à {communeSelectionnee}
               </Text>
               {prixVerifies.map((prix) => (
                 <PrixCard
@@ -307,6 +332,9 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 26, fontWeight: "800", color: "#FFFFFF" },
   headerSub: { fontSize: 12, color: "rgba(255,255,255,0.75)", marginTop: 2 },
   syncIndicator: { fontSize: 11, color: "rgba(255,255,255,0.85)" },
+  syncRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+  headerMarque: { flexDirection: "row", alignItems: "center", gap: 10 },
+  logo: { width: 40, height: 40, borderRadius: 10, backgroundColor: "#FFFFFF" },
   communeScroll: { maxHeight: 50, backgroundColor: "#FFFFFF" },
   communeScrollContent: { paddingHorizontal: 16, paddingVertical: 10, gap: 8 },
   communeChip: {
@@ -345,6 +373,9 @@ const styles = StyleSheet.create({
   },
   cardNom: { fontSize: 15, fontWeight: "700", color: "#1A1A1A", flex: 1 },
   alerteBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
     backgroundColor: "#FFF3CD",
     paddingHorizontal: 8,
     paddingVertical: 2,
@@ -362,7 +393,6 @@ const styles = StyleSheet.create({
   centered: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12 },
   loadingText: { color: "#888888", fontSize: 14 },
   emptyState: { alignItems: "center", paddingTop: 60, gap: 8 },
-  emptyEmoji: { fontSize: 48 },
   emptyTitle: { fontSize: 16, fontWeight: "700", color: "#333333", textAlign: "center" },
   emptySubtitle: { fontSize: 13, color: "#888888", textAlign: "center", paddingHorizontal: 20 },
   ctaButton: {

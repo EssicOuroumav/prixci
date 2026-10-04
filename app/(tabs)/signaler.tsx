@@ -18,6 +18,8 @@ import { useAppStore } from "@/stores/useAppStore";
 import { insertSignalement } from "@/services/db";
 import { syncAvecStore } from "@/services/sync";
 import { scoreInitialSignalement, SEUIL_CONFIRMATIONS } from "@/services/scoring";
+import Icone from "@/components/Icone";
+import SelecteurCategorie from "@/components/SelecteurCategorie";
 import { Signalement, COMMUNES_ABIDJAN, TYPES_LIEU, TypeLieu, Unite } from "@/constants/types";
 import {
   PRODUITS_REF,
@@ -60,7 +62,7 @@ async function lirePosition(): Promise<{ latitude?: number; longitude?: number }
 
 export default function SignalerScreen() {
   const router = useRouter();
-  const { user, setUser, communeSelectionnee } = useAppStore();
+  const { user, setUser, communeSelectionnee, categorieActive } = useAppStore();
 
   const [etape, setEtape] = useState<"produit" | "prix" | "lieu">("produit");
   const [produitSelectionne, setProduitSelectionne] = useState<string | null>(null);
@@ -72,7 +74,6 @@ export default function SignalerScreen() {
   const [nomLieu, setNomLieu] = useState("");
   const [recherche, setRecherche] = useState("");
   const [loading, setLoading] = useState(false);
-  const [categorieFiltre, setCategorieFiltre] = useState<"alimentation" | "transport" | null>(null);
 
   const produit = PRODUITS_REF.find((p) => p.id === produitSelectionne);
   const estTransport = produit?.categorie === "transport";
@@ -91,7 +92,7 @@ export default function SignalerScreen() {
 
   // ─── Filtrage produits ─────────────────────────────────
   const produitsFiltres = PRODUITS_REF.filter((p) => {
-    const matchCategorie = !categorieFiltre || p.categorie === categorieFiltre;
+    const matchCategorie = p.categorie === categorieActive;
     const matchRecherche =
       !recherche ||
       p.nom.toLowerCase().includes(recherche.toLowerCase());
@@ -164,7 +165,7 @@ export default function SignalerScreen() {
       const nomProduit = produit.nom;
       reinitialiser();
       Alert.alert(
-        "Signalement enregistré ✓",
+        "Signalement enregistré",
         `${nomProduit} à ${prix.toLocaleString("fr-FR")} FCFA, ${communeSelectee}.\n\nIl deviendra public après ${SEUIL_CONFIRMATIONS} confirmations d'autres citoyens.`,
         [{ text: "OK", onPress: () => router.navigate("/(tabs)") }]
       );
@@ -181,36 +182,16 @@ export default function SignalerScreen() {
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.headerEtape}>Étape 1 sur 3</Text>
-          <Text style={styles.headerTitle}>Quel produit ou trajet ?</Text>
+          <Text style={styles.headerTitle}>
+            {categorieActive === "transport" ? "Quel trajet ?" : "Quel produit ?"}
+          </Text>
         </View>
 
-        <View style={styles.categorieToggle}>
-          {(["alimentation", "transport"] as const).map((cat) => (
-            <TouchableOpacity
-              key={cat}
-              style={[
-                styles.categorieBtn,
-                categorieFiltre === cat && styles.categorieBtnActive,
-              ]}
-              onPress={() =>
-                setCategorieFiltre(categorieFiltre === cat ? null : cat)
-              }
-            >
-              <Text
-                style={[
-                  styles.categorieBtnText,
-                  categorieFiltre === cat && styles.categorieBtnTextActive,
-                ]}
-              >
-                {cat === "alimentation" ? "🛒 Alimentation" : "🚌 Transport"}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        <SelecteurCategorie />
 
         <TextInput
           style={styles.searchInput}
-          placeholder="Rechercher un produit ou un trajet…"
+          placeholder={categorieActive === "transport" ? "Rechercher un trajet…" : "Rechercher un produit…"}
           value={recherche}
           onChangeText={setRecherche}
           placeholderTextColor="#AAAAAA"
@@ -274,7 +255,7 @@ export default function SignalerScreen() {
           {produit?.prixReference && (
             <View style={styles.refBox}>
               <Text style={styles.refText}>
-                💡 Prix de référence OCPV :{" "}
+                Prix de référence :{" "}
                 <Text style={styles.refPrix}>
                   {produit.prixReference.toLocaleString("fr-FR")} FCFA
                 </Text>
@@ -392,7 +373,7 @@ export default function SignalerScreen() {
                   style={[styles.typeLieuItem, typeLieu === t.id && styles.typeLieuItemActive]}
                   onPress={() => setTypeLieu(t.id)}
                 >
-                  <Text style={styles.typeLieuEmoji}>{t.emoji}</Text>
+                  <Icone nom={t.icone} taille={18} couleur={typeLieu === t.id ? VERT : "#555555"} />
                   <Text style={[styles.typeLieuLabel, typeLieu === t.id && styles.typeLieuLabelActive]}>
                     {t.label}
                   </Text>
@@ -430,7 +411,7 @@ export default function SignalerScreen() {
           {loading ? (
             <ActivityIndicator color="#FFFFFF" />
           ) : (
-            <Text style={styles.submitBtnText}>📢 Publier le signalement</Text>
+            <Text style={styles.submitBtnText}>Publier le signalement</Text>
           )}
         </TouchableOpacity>
 

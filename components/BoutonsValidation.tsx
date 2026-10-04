@@ -19,6 +19,7 @@ import {
 } from "@/services/scoring";
 import { syncAvecStore } from "@/services/sync";
 import { useAppStore } from "@/stores/useAppStore";
+import Icone from "@/components/Icone";
 
 // ============================================================
 // COMPOSANT BOUTONS DE VALIDATION COMMUNAUTAIRE
@@ -133,10 +134,10 @@ export default function BoutonsValidation({
               { color: voteLocal === "conteste" ? "#C0392B" : "#0A5F38" }
             ]}>
               {voteLocal === "confirme"
-                ? "✓ Tu as confirmé ce prix"
+                ? "Tu as confirmé ce prix"
                 : voteLocal === "conteste"
-                ? "✗ Tu as contesté ce prix"
-                : "✓ Tu as déjà voté sur ce prix"}
+                ? "Tu as contesté ce prix"
+                : "Tu as déjà voté sur ce prix"}
             </Text>
           </View>
           <BarreConsensus conf={nbConf} cont={nbCont} />
@@ -175,7 +176,7 @@ export default function BoutonsValidation({
             <ActivityIndicator size="small" color="#0A5F38" />
           ) : (
             <>
-              <Text style={styles.btnIcon}>✓</Text>
+              <Icone nom="checkmark-circle" taille={22} couleur="#0A5F38" />
               <View>
                 <Text style={styles.btnLabel}>Confirmer</Text>
                 <Text style={styles.btnCount}>{nbConf} confirmation{nbConf > 1 ? "s" : ""}</Text>
@@ -195,7 +196,7 @@ export default function BoutonsValidation({
             <ActivityIndicator size="small" color="#C0392B" />
           ) : (
             <>
-              <Text style={[styles.btnIcon, { color: "#C0392B" }]}>✗</Text>
+              <Icone nom="close-circle" taille={22} couleur="#C0392B" />
               <View>
                 <Text style={[styles.btnLabel, { color: "#C0392B" }]}>Contester</Text>
                 <Text style={[styles.btnCount, { color: "#C0392B" }]}>{nbCont} contestation{nbCont > 1 ? "s" : ""}</Text>

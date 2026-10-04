@@ -11,6 +11,7 @@ import {
   NativeScrollEvent,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Icone from "@/components/Icone";
 
 // ============================================================
 // ONBOARDING — 3 SLIDES
@@ -43,7 +44,7 @@ function IllustrationComparaison() {
       <View style={illu.row}>
         {/* Marché */}
         <View style={[illu.colonne, { backgroundColor: "#E8F5EE" }]}>
-          <Text style={illu.icone}>🏪</Text>
+          <Icone nom="storefront-outline" taille={28} couleur="#0A5F38" />
           <Text style={illu.colLabel}>Marché</Text>
           <View style={[illu.prixBox, { backgroundColor: VERT }]}>
             <Text style={illu.prixBas}>300 F</Text>
@@ -52,7 +53,7 @@ function IllustrationComparaison() {
             <View style={[illu.barre, { height: 40, backgroundColor: VERT }]} />
           </View>
           <Text style={[illu.badge, { backgroundColor: VERT, color: "#FFF" }]}>
-            ✓ Moins cher
+            Moins cher
           </Text>
         </View>
 
@@ -63,7 +64,7 @@ function IllustrationComparaison() {
 
         {/* Supermarché */}
         <View style={[illu.colonne, { backgroundColor: "#FFF3CD" }]}>
-          <Text style={illu.icone}>🏬</Text>
+          <Icone nom="cart-outline" taille={28} couleur="#C0392B" />
           <Text style={illu.colLabel}>Supermarché</Text>
           <View style={[illu.prixBox, { backgroundColor: "#D4820A" }]}>
             <Text style={illu.prixBas}>1 000 F</Text>
@@ -79,12 +80,12 @@ function IllustrationComparaison() {
 
       {/* Produit */}
       <View style={illu.produitTag}>
-        <Text style={illu.produitTexte}>🍅 Tomate · Yopougon</Text>
+        <Text style={illu.produitTexte}>Tomate · Yopougon</Text>
       </View>
 
       {/* Flèche économie */}
       <View style={illu.economieBadge}>
-        <Text style={illu.economieTexte}>💰 Économise 700 FCFA</Text>
+        <Text style={illu.economieTexte}>Économise 700 FCFA</Text>
       </View>
     </View>
   );
@@ -102,7 +103,7 @@ function IllustrationSignalement() {
         <View style={illu.formField}>
           <Text style={illu.formFieldLabel}>Produit</Text>
           <View style={illu.formFieldValue}>
-            <Text style={illu.formFieldText}>🥩 Viande de bœuf sans os</Text>
+            <Text style={illu.formFieldText}>Viande de bœuf sans os</Text>
           </View>
         </View>
 
@@ -119,23 +120,23 @@ function IllustrationSignalement() {
           <Text style={illu.formFieldLabel}>Lieu</Text>
           <View style={illu.lieuRow}>
             <View style={[illu.lieuChip, { backgroundColor: "#E8F5EE", borderColor: VERT }]}>
-              <Text style={{ fontSize: 12 }}>🏪 Marché</Text>
+              <Text style={{ fontSize: 12 }}>Marché</Text>
             </View>
             <View style={illu.lieuChip}>
-              <Text style={{ fontSize: 12 }}>🏬 Supermarché</Text>
+              <Text style={{ fontSize: 12 }}>Supermarché</Text>
             </View>
           </View>
         </View>
 
         <View style={[illu.submitBtn, { backgroundColor: VERT }]}>
-          <Text style={illu.submitText}>📢 Signaler cet abus</Text>
+          <Text style={illu.submitText}>Signaler cet abus</Text>
         </View>
       </View>
 
       {/* Bulle notification */}
       <View style={illu.notifBulle}>
         <Text style={illu.notifTexte}>
-          ⚠ Prix 3× supérieur au marché détecté !
+          Prix 3× supérieur au marché détecté !
         </Text>
       </View>
     </View>
@@ -157,16 +158,14 @@ function IllustrationCommunaute() {
         <View style={illu.scoreBarContainer}>
           <View style={[illu.scoreBarre, { width: "78%" }]} />
         </View>
-        <Text style={illu.scoreGlobalValeur}>78 / 100 · Fiable ✓</Text>
+        <Text style={illu.scoreGlobalValeur}>78 / 100 · Fiable</Text>
       </View>
 
       {/* Votes */}
       {avis.map((a, i) => (
         <View key={i} style={illu.avisCard}>
           <View style={[illu.voteIndicateur, { backgroundColor: a.couleur }]}>
-            <Text style={illu.voteIcon}>
-              {a.vote === "confirme" ? "✓" : "✗"}
-            </Text>
+            <Icone nom={a.vote === "confirme" ? "checkmark" : "close"} taille={16} couleur="#FFFFFF" />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={illu.avisPseudo}>{a.pseudo}</Text>
@@ -177,7 +176,7 @@ function IllustrationCommunaute() {
 
       <View style={illu.solidariteBadge}>
         <Text style={illu.solidariteTexte}>
-          🤝 3 citoyens ont validé ce prix
+          3 citoyens ont validé ce prix
         </Text>
       </View>
     </View>

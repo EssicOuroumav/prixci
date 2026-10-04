@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import { inscrireEnseigne, TypeEnseigne, TYPES_ENSEIGNE } from "@/services/enseignes";
 import { COMMUNES_ABIDJAN } from "@/constants/types";
 import { useAppStore } from "@/stores/useAppStore";
+import Icone from "@/components/Icone";
 
 export default function InscriptionEnseigne() {
   const [nom, setNom] = useState("");
@@ -29,7 +30,7 @@ export default function InscriptionEnseigne() {
         adresse: adresse.trim(),
         telephone: telephone.trim(),
       });
-      Alert.alert("✅ Inscription réussie", `${enseigne.nom} est inscrit sur PrixCI. Tu peux maintenant publier tes prix.`, [
+      Alert.alert("Inscription réussie", `${enseigne.nom} est inscrit sur PrixCI. Tu peux maintenant publier tes prix.`, [
         {
           text: "Publier mes prix",
           onPress: () => router.replace({ pathname: "/enseigne/[id]", params: { id: enseigne.id } }),
@@ -61,7 +62,8 @@ export default function InscriptionEnseigne() {
       <View style={styles.row}>
         {TYPES_ENSEIGNE.map((t) => (
           <TouchableOpacity key={t.value} style={[styles.chip, type === t.value && styles.chipActive]} onPress={() => setType(t.value)}>
-            <Text style={[styles.chipText, type === t.value && styles.chipTextActive]}>{t.emoji} {t.label}</Text>
+            <Icone nom={t.icone} taille={16} couleur={type === t.value ? "#FFFFFF" : "#333333"} />
+            <Text style={[styles.chipText, type === t.value && styles.chipTextActive]}>{t.label}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -100,7 +102,7 @@ const styles = StyleSheet.create({
   label: { fontSize: 14, fontWeight: "600", color: "#333", marginBottom: 8, marginTop: 16 },
   input: { borderWidth: 1, borderColor: "#ddd", borderRadius: 12, padding: 14, fontSize: 16, backgroundColor: "#fafafa" },
   row: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: "#ddd", backgroundColor: "#fafafa" },
+  chip: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: "#ddd", backgroundColor: "#fafafa" },
   chipActive: { backgroundColor: "#0A5F38", borderColor: "#0A5F38" },
   chipText: { fontSize: 14, color: "#333" },
   chipTextActive: { color: "#fff", fontWeight: "600" },

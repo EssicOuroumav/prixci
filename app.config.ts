@@ -18,7 +18,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   android: {
     adaptiveIcon: {
       foregroundImage: "./assets/adaptive-icon.png",
-      backgroundColor: "#0A5F38",
+      backgroundColor: "#FFFFFF",
     },
     package: "ci.prixci.app",
     permissions: ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"],
@@ -27,13 +27,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     "expo-router",
     "expo-sqlite",
     "expo-status-bar",
+    "expo-font",
     [
       "expo-splash-screen",
       {
         image: "./assets/splash-icon.png",
         imageWidth: 220,
         resizeMode: "contain",
-        backgroundColor: "#0A5F38",
+        backgroundColor: "#FFFFFF",
       },
     ],
     [

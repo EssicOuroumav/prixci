@@ -16,7 +16,8 @@ import {
   getValidationsDetail,
   getHistoriqueSignalements,
 } from "@/services/db";
-import { TYPES_LIEU } from "@/constants/types";
+import { infoTypeLieu } from "@/constants/types";
+import Icone from "@/components/Icone";
 import { LABELS_UNITE } from "@/constants/produits";
 import {
   labelScoreFilabilite,
@@ -57,14 +58,8 @@ function dateRelative(iso: string): string {
   return `il y a ${j} jour${j > 1 ? "s" : ""}`;
 }
 
-function emojiTypeLieu(type: string): string {
-  const found = TYPES_LIEU.find((t) => t.id === type);
-  return found?.emoji ?? "📍";
-}
-
 function labelTypeLieu(type: string): string {
-  const found = TYPES_LIEU.find((t) => t.id === type);
-  return found?.label ?? type;
+  return infoTypeLieu(type).label;
 }
 
 // ─── Graphique d'évolution des prix (SVG natif RN) ────────
@@ -377,7 +372,7 @@ function CarteHistorique({
     <View style={[histoStyles.carte, isCurrent && histoStyles.carteCurrent]}>
       {isCurrent && (
         <View style={histoStyles.currentBadge}>
-          <Text style={histoStyles.currentBadgeText}>● Ce signalement</Text>
+          <Text style={histoStyles.currentBadgeText}>Ce signalement</Text>
         </View>
       )}
       <View style={histoStyles.row}>
@@ -387,7 +382,7 @@ function CarteHistorique({
             <Text style={histoStyles.unite}> / {LABELS_UNITE[signalement.unite] ?? signalement.unite}</Text>
           </Text>
           <View style={histoStyles.lieuRow}>
-            <Text style={histoStyles.lieuEmoji}>{emojiTypeLieu(signalement.typeLieu)}</Text>
+            <Icone nom={infoTypeLieu(signalement.typeLieu).icone} taille={14} couleur="#555555" />
             <Text style={histoStyles.lieuNom} numberOfLines={1}>
               {signalement.nomLieu || labelTypeLieu(signalement.typeLieu)}
             </Text>
@@ -405,9 +400,10 @@ function CarteHistorique({
       </View>
       {(signalement.nbConfirmations + signalement.nbContestations) > 0 && (
         <View style={histoStyles.votes}>
-          <Text style={histoStyles.votesText}>
-            ✓ {signalement.nbConfirmations}  ✗ {signalement.nbContestations}
-          </Text>
+          <Icone nom="checkmark" taille={12} couleur={VERT} />
+          <Text style={histoStyles.votesText}>{signalement.nbConfirmations}</Text>
+          <Icone nom="close" taille={12} couleur={ROUGE} />
+          <Text style={histoStyles.votesText}>{signalement.nbContestations}</Text>
         </View>
       )}
     </View>
@@ -438,7 +434,7 @@ const histoStyles = StyleSheet.create({
   scoreText: { fontSize: 11, fontWeight: "700" },
   date: { fontSize: 11, color: "#AAAAAA" },
   auteur: { fontSize: 10, color: "#CCCCCC" },
-  votes: { marginTop: 8, flexDirection: "row", gap: 8 },
+  votes: { marginTop: 8, flexDirection: "row", alignItems: "center", gap: 4 },
   votesText: { fontSize: 11, color: "#888888" },
 });
 
@@ -455,7 +451,7 @@ function CarteVote({ vote, dateVote, votantPseudonyme, votantScore }: {
   return (
     <View style={voteStyles.carte}>
       <View style={[voteStyles.indicateur, { backgroundColor: isConf ? VERT : ROUGE }]}>
-        <Text style={voteStyles.indicateurIcon}>{isConf ? "✓" : "✗"}</Text>
+        <Icone nom={isConf ? "checkmark" : "close"} taille={16} couleur="#FFFFFF" />
       </View>
       <View style={voteStyles.contenu}>
         <Text style={voteStyles.pseudo}>{votantPseudonyme}</Text>
@@ -468,8 +464,9 @@ function CarteVote({ vote, dateVote, votantPseudonyme, votantScore }: {
         </View>
       </View>
       <View style={[voteStyles.scoreBadge, { backgroundColor: badgeUser.couleur + "18" }]}>
+        <Icone nom={badgeUser.icone} taille={11} couleur={badgeUser.couleur} />
         <Text style={{ fontSize: 10, color: badgeUser.couleur, fontWeight: "600" }}>
-          {badgeUser.emoji} {votantScore}
+          {votantScore}
         </Text>
       </View>
     </View>
@@ -501,6 +498,9 @@ const voteStyles = StyleSheet.create({
   separateur: { fontSize: 11, color: "#CCCCCC" },
   date: { fontSize: 11, color: "#AAAAAA" },
   scoreBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
     borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -581,7 +581,7 @@ export default function DetailScreen() {
   if (!detail) {
     return (
       <View style={styles.loadingContainer}>
-        <Text style={{ fontSize: 40 }}>🔍</Text>
+        <Icone nom="search-outline" taille={40} couleur="#B8C4BC" />
         <Text style={styles.loadingText}>Signalement introuvable.</Text>
         <TouchableOpacity onPress={() => router.back()} style={styles.retourBtn}>
           <Text style={styles.retourBtnText}>← Retour</Text>
@@ -629,8 +629,8 @@ export default function DetailScreen() {
           >
             <Text style={[styles.statutText, { color: verifie ? VERT : "#8A5200" }]}>
               {verifie
-                ? "✓ Prix vérifié par la communauté"
-                : `🗳 À confirmer · ${signalement.nbConfirmations} / ${SEUIL_CONFIRMATIONS} confirmations`}
+                ? "Prix vérifié par la communauté"
+                : `À confirmer · ${signalement.nbConfirmations} / ${SEUIL_CONFIRMATIONS} confirmations`}
             </Text>
           </View>
           <View style={styles.heroRow}>
@@ -654,7 +654,7 @@ export default function DetailScreen() {
 
           {/* Lieu */}
           <View style={styles.lieuHero}>
-            <Text style={styles.lieuHeroEmoji}>{emojiTypeLieu(signalement.typeLieu)}</Text>
+            <Icone nom={infoTypeLieu(signalement.typeLieu).icone} taille={24} couleur={VERT} />
             <View>
               <Text style={styles.lieuHeroNom}>
                 {signalement.nomLieu || labelTypeLieu(signalement.typeLieu)}
@@ -669,7 +669,7 @@ export default function DetailScreen() {
           {/* Auteur + date */}
           <View style={styles.auteurRow}>
             <View style={[styles.auteurBadge, { backgroundColor: badgeAuteur.couleur + "14" }]}>
-              <Text style={{ fontSize: 11 }}>{badgeAuteur.emoji}</Text>
+              <Icone nom={badgeAuteur.icone} taille={12} couleur={badgeAuteur.couleur} />
               <Text style={[styles.auteurNom, { color: badgeAuteur.couleur }]}>
                 {auteurPseudonyme}
               </Text>
@@ -734,10 +734,10 @@ export default function DetailScreen() {
             >
               <Text style={[styles.ongletText, onglet === o && styles.ongletTextActive]}>
                 {o === "evolution"
-                  ? `📈 Évolution`
+                  ? `Évolution`
                   : o === "votes"
-                  ? `🗳 Votes (${validations.length})`
-                  : `📋 Historique (${historique.length})`}
+                  ? `Votes (${validations.length})`
+                  : `Historique (${historique.length})`}
               </Text>
             </TouchableOpacity>
           ))}
@@ -788,7 +788,7 @@ export default function DetailScreen() {
           <View style={styles.section}>
             {validations.length === 0 ? (
               <View style={styles.emptySection}>
-                <Text style={styles.emptySectionEmoji}>🗳</Text>
+                <Icone nom="people-outline" taille={36} couleur="#B8C4BC" />
                 <Text style={styles.emptySectionText}>
                   Aucun vote pour l'instant. Sois le premier à valider ce prix !
                 </Text>
@@ -820,7 +820,7 @@ export default function DetailScreen() {
 
         {!estLeMien && (
           <TouchableOpacity onPress={demanderMotifAbus} style={styles.abusBtn}>
-            <Text style={styles.abusText}>⚑ Signaler un contenu abusif</Text>
+            <Text style={styles.abusText}>Signaler un contenu abusif</Text>
           </TouchableOpacity>
         )}
 

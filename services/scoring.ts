@@ -2,6 +2,8 @@
 // LOGIQUE DE SCORE DE CONFIANCE — TYPE WAZE
 // ============================================================
 
+import { NomIcone } from "@/constants/types";
+
 /**
  * Nombre de confirmations à partir duquel un signalement est « vérifié » :
  * il entre alors dans les moyennes, les comparaisons et les graphiques.
@@ -78,12 +80,12 @@ export function labelScoreFilabilite(score: number): {
  */
 export function labelScoreUser(score: number): {
   label: string;
-  emoji: string;
+  icone: NomIcone;
   couleur: string;
 } {
-  if (score >= 90) return { label: "Expert citoyen",   emoji: "🏆", couleur: "#0A5F38" };
-  if (score >= 70) return { label: "Contributeur actif", emoji: "⭐", couleur: "#2E8B57" };
-  if (score >= 50) return { label: "Membre",           emoji: "✓",  couleur: "#4A90A4" };
-  if (score >= 30) return { label: "Débutant",         emoji: "○",  couleur: "#888888" };
-  return { label: "Non fiable", emoji: "⚠", couleur: "#C0392B" };
+  if (score >= 90) return { label: "Expert citoyen",     icone: "trophy",           couleur: "#0A5F38" };
+  if (score >= 70) return { label: "Contributeur actif", icone: "star",             couleur: "#2E8B57" };
+  if (score >= 50) return { label: "Membre",             icone: "checkmark-circle", couleur: "#4A90A4" };
+  if (score >= 30) return { label: "Débutant",           icone: "ellipse-outline",  couleur: "#888888" };
+  return { label: "Non fiable", icone: "warning", couleur: "#C0392B" };
 }

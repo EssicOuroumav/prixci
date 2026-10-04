@@ -26,12 +26,16 @@ services/
   scoring.ts             seuil de confirmations, règle de fiabilité, badges
   enseignes.ts           enseignes et prix officiels (serveur uniquement)
   abus.ts                signalement de contenus abusifs
-  demoSeed.ts            données de démo, chargées en développement seulement
+components/
+  Icone.tsx              toutes les icônes (Ionicons) ; aucun emoji dans l'interface
+  SelecteurCategorie.tsx choix Alimentation / Transport, partagé entre les onglets
 constants/               types et catalogue des produits
 tests/                   test des scripts SQL dans un Postgres embarqué
 ```
 
 ## Règles métier
+- Alimentation et transport ne sont jamais mélangés : l'accueil, Explorer et le formulaire n'affichent que l'univers choisi (`categorieActive` dans le store).
+- L'application démarre vide : aucune donnée de démonstration.
 - Un signalement devient « vérifié » à 10 confirmations (`SEUIL_CONFIRMATIONS`). Seuls les vérifiés comptent dans les moyennes, comparaisons et graphiques ; les autres sont dans la file « À confirmer ».
 - Fiabilité d'un signalement : 60 % du score de l'auteur au départ, +5 par confirmation, −8 par contestation ; masqué sous 30.
 - Score utilisateur : départ 50, +3 par confirmation reçue, −5 par contestation reçue, +1 par vote donné.

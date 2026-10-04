@@ -4,10 +4,9 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getOrCreateAnonymousUser } from "@/services/auth";
-import { getDb } from "@/services/db";
+import { getDb, purgerDonneesDemo } from "@/services/db";
 import { syncAvecStore } from "@/services/sync";
 import { getUserValidations } from "@/services/db";
-import { seedDemoData } from "@/services/demoSeed";
 import { useAppStore } from "@/stores/useAppStore";
 import Onboarding from "@/components/Onboarding";
 
@@ -25,13 +24,11 @@ export default function RootLayout() {
 
         // Initialiser la base de données locale
         await getDb();
+        await purgerDonneesDemo();
 
         // Créer ou récupérer l'utilisateur anonyme
         const user = await getOrCreateAnonymousUser();
         setUser(user);
-
-        // Données de démo : uniquement en développement, jamais dans la version publiée
-        if (__DEV__) await seedDemoData(user.id);
 
         // Charger les validations déjà effectuées
         const validations = await getUserValidations(user.id);
