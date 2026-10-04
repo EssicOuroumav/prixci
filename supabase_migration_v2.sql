@@ -13,6 +13,17 @@
 --   5. Signalement de contenus abusifs
 -- ============================================================
 
+-- ─── 0. DROITS DE BASE SUR LES TABLES EXISTANTES ──────────
+-- Sur ce projet, les tables créées par script ne sont pas ouvertes
+-- automatiquement aux rôles de l'application : sans ces lignes, toute lecture
+-- répond « permission denied ». Les droits par ligne (RLS) continuent de
+-- filtrer ce que chacun peut voir ou écrire.
+GRANT USAGE ON SCHEMA public TO anon, authenticated;
+GRANT SELECT ON public.users, public.signalements, public.validations
+  TO anon, authenticated;
+GRANT INSERT ON public.users, public.signalements, public.validations
+  TO authenticated;
+
 -- ─── 1. ENSEIGNES ─────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.enseignes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -18,9 +18,9 @@ await db.exec(`
     $$ SELECT NULLIF(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
   CREATE FUNCTION auth.role() RETURNS text LANGUAGE sql STABLE AS
     $$ SELECT current_user::text $$;
-  GRANT USAGE ON SCHEMA public, auth TO anon, authenticated;
+  -- Comme sur le projet réel : aucun droit par défaut sur les tables de public
+  GRANT USAGE ON SCHEMA auth TO anon, authenticated;
   GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA auth TO anon, authenticated;
-  ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated;
 `);
 for (const f of ["supabase_schema.sql", "supabase_migration_sprint3.sql", "supabase_migration_v2.sql", "supabase_migration_v2.sql"]) {
   try { await db.exec(readFileSync(P + f, "utf8")); ok("script exécuté : " + f, true); }
@@ -76,6 +76,7 @@ await refuse("vote : un seul vote par personne", B, vote, ["v4", "s1", B, "confi
 await refuse("vote : impossible de voter au nom d'un autre", B, vote, ["v5", "s2", C, "confirme"]);
 
 // ── Visibilité ──
+ok("lecture : tables de base lisibles sans compte", (await en(null, `SELECT (SELECT COUNT(*) FROM users) + (SELECT COUNT(*) FROM validations) AS n`)).rows.length === 1);
 ok("lecture : signalement à 27 masqué pour les autres", (await en(B, `SELECT id FROM signalements WHERE id='s1'`)).rows.length === 0);
 ok("lecture : mais toujours visible par son auteur", (await en(A, `SELECT id FROM signalements WHERE id='s1'`)).rows.length === 1);
 
