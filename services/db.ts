@@ -602,8 +602,8 @@ export async function getPrixParCommerce(commune?: string): Promise<PrixCommerce
       ROUND(AVG(prix), 0) as prix,
       COUNT(*) as nb,
       MAX(date_signalement) as derniere_maj,
-      AVG(latitude) as latitude,
-      AVG(longitude) as longitude
+      AVG(CASE WHEN latitude BETWEEN 4 AND 11 AND longitude BETWEEN -9 AND -2 THEN latitude END) as latitude,
+      AVG(CASE WHEN latitude BETWEEN 4 AND 11 AND longitude BETWEEN -9 AND -2 THEN longitude END) as longitude
     FROM signalements_v
     WHERE (? IS NULL OR commune = ?)
       AND categorie = 'alimentation'

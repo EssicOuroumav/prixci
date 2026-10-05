@@ -11,13 +11,13 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import * as Location from "expo-location";
 import * as Crypto from "expo-crypto";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useAppStore } from "@/stores/useAppStore";
 import { insertSignalement, getLieuxConnus, dejaSignaleAujourdhui } from "@/services/db";
 import { prixDeReference, comparerAuPrixOfficiel, libelleReference } from "@/services/reference";
 import { syncAvecStore } from "@/services/sync";
+import { lirePositionPourSignalement } from "@/services/position";
 import { scoreInitialSignalement, SEUIL_APPUIS } from "@/services/scoring";
 import SelecteurZone from "@/components/SelecteurZone";
 import Icone from "@/components/Icone";
@@ -44,31 +44,6 @@ const PRIX_MAX = 500000;
 
 function lirePrix(saisie: string): number {
   return parseFloat(saisie.replace(/\s/g, "").replace(",", "."));
-}
-
-/**
- * Position GPS sans jamais bloquer le signalement : dernière position connue,
- * sinon une mesure limitée à 4 secondes, sinon rien.
- */
-async function lirePosition(): Promise<{ latitude?: number; longitude?: number }> {
-  try {
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== "granted") return {};
-    const connue = await Location.getLastKnownPositionAsync();
-    const position =
-      connue ??
-      (await Promise.race([
-        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
-        new Promise<null>((resolve) => setTimeout(() => resolve(null), 4000)),
-      ]));
-    if (!position) return {};
-    return {
-      latitude: position.coords.latitude,
-      longitude: position.coords.longitude,
-    };
-  } catch {
-    return {};
-  }
 }
 
 export default function SignalerScreen() {
@@ -184,7 +159,9 @@ export default function SignalerScreen() {
         return;
       }
 
-      const { latitude, longitude } = await lirePosition();
+      const position = await lirePositionPourSignalement();
+      const latitude = position?.latitude;
+      const longitude = position?.longitude;
 
       const id = await Crypto.digestStringAsync(
         Crypto.CryptoDigestAlgorithm.SHA256,

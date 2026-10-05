@@ -11,6 +11,38 @@ export interface Position {
   longitude: number;
 }
 
+// Une « dernière position connue » peut dater de plusieurs jours : on ne la
+// retient que si elle a moins de deux minutes.
+const POSITION_RECENTE = { maxAge: 2 * 60 * 1000, requiredAccuracy: 500 };
+
+/** La Côte d'Ivoire, avec une marge : toute position en dehors est écartée. */
+export function estEnCoteDIvoire(p: Position): boolean {
+  return p.latitude > 4 && p.latitude < 11 && p.longitude > -9 && p.longitude < -2;
+}
+
+/**
+ * Position à joindre à un signalement : récente, mesurée en 6 secondes au plus,
+ * et située en Côte d'Ivoire. Sinon rien : un signalement sans position vaut
+ * mieux qu'un commerce placé au mauvais endroit.
+ */
+export async function lirePositionPourSignalement(): Promise<Position | null> {
+  try {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== "granted") return null;
+    const lue =
+      (await Location.getLastKnownPositionAsync(POSITION_RECENTE)) ??
+      (await Promise.race([
+        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 6000)),
+      ]));
+    if (!lue) return null;
+    const position = { latitude: lue.coords.latitude, longitude: lue.coords.longitude };
+    return estEnCoteDIvoire(position) ? position : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Lit la position et la range dans le store.
  * `demander` : affiche la demande d'autorisation si elle n'a pas encore été faite.
@@ -23,9 +55,8 @@ export async function actualiserPosition(demander: boolean): Promise<Position | 
       : await Location.getForegroundPermissionsAsync();
     if (status !== "granted") return null;
 
-    const connue = await Location.getLastKnownPositionAsync();
     const lue =
-      connue ??
+      (await Location.getLastKnownPositionAsync(POSITION_RECENTE)) ??
       (await Promise.race([
         Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
         new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
