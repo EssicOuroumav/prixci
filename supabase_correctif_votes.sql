@@ -2,14 +2,13 @@
 -- CORRECTIF — envoi des votes refusé (PrixCI)
 -- Symptôme : « permission denied for table signalements » quand un
 -- utilisateur confirme ou conteste un prix.
--- Cause probable : d'anciens déclencheurs de vote, exécutés avec les droits
--- de l'utilisateur, sont encore présents (ou ont été recréés en relançant
--- supabase_migration_sprint3.sql après la migration v2).
+-- Cause : un ancien déclencheur (trigger_update_visibility), exécuté avec les
+-- droits de l'utilisateur, était encore présent sur la table des votes.
 --
 -- À exécuter dans : Supabase Dashboard > SQL Editor.
 -- Sans risque : ne touche à aucune donnée, peut être relancé.
 -- Le résultat affiché à la fin liste les déclencheurs de la table des votes :
--- les trois lignes doivent indiquer « droits_serveur = true ».
+-- toutes les lignes doivent indiquer « droits_serveur = true ».
 -- ============================================================
 
 -- ─── 6. VOTES ─────────────────────────────────────────────
@@ -42,6 +41,14 @@ CREATE TRIGGER trigger_validations_controle
 -- Les deux anciens déclencheurs s'exécutaient avec les droits du votant :
 -- les droits d'accès bloquaient leurs mises à jour sans message d'erreur.
 -- Ils sont remplacés par une seule fonction exécutée avec les droits du serveur.
+-- Ancien mécanisme « visible après 10 confirmations » : son déclencheur
+-- modifiait la table signalements avec les droits de l'utilisateur, ce qui
+-- faisait refuser chaque vote. La règle est désormais gérée par l'application
+-- (3 constats concordants). Les colonnes visible et nb_confirmations_requis
+-- restent en place, sans effet.
+DROP TRIGGER IF EXISTS trigger_update_visibility ON public.validations;
+DROP FUNCTION IF EXISTS public.update_signalement_visibility();
+
 DROP TRIGGER IF EXISTS trigger_maj_score ON public.validations;
 DROP TRIGGER IF EXISTS trigger_score_user ON public.validations;
 DROP FUNCTION IF EXISTS public.maj_score_signalement();
