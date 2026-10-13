@@ -12,6 +12,7 @@ import * as Crypto from "expo-crypto";
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? "";
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "";
 const CLE_USER_HORS_LIGNE = "prixci_offline_user_id";
+const CLE_USER = "prixci_user_id";
 
 export const supabase: SupabaseClient = createClient(
   SUPABASE_URL,
@@ -29,30 +30,53 @@ export const supabase: SupabaseClient = createClient(
 // ─── Auth anonyme ──────────────────────────────────────────
 
 /**
+ * Borne un appel réseau : au-delà du délai, on continue sans lui.
+ * Sans cela, un serveur injoignable bloquait le démarrage de l'application.
+ */
+function avecDelai<T>(promesse: Promise<T>, ms: number): Promise<T | null> {
+  return Promise.race([
+    promesse.catch(() => null),
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), ms)),
+  ]);
+}
+
+/**
  * Crée ou récupère un profil utilisateur anonyme.
  * Ordre de priorité :
- * 1. Session Supabase existante
- * 2. Profil local SQLite
+ * 1. Compte déjà connu sur ce téléphone : aucun appel réseau
+ * 2. Session Supabase existante
  * 3. Création d'un nouveau compte anonyme
+ * 4. Compte provisoire hors ligne si le serveur ne répond pas
  */
 export async function getOrCreateAnonymousUser(): Promise<UserProfile> {
-  // 1. Vérifier session existante
-  const { data: sessionData } = await supabase.auth.getSession();
-  const session = sessionData?.session;
+  // 1. Compte déjà connu : l'application démarre sans attendre le réseau
+  const idConnu = await AsyncStorage.getItem(CLE_USER);
+  if (idConnu) {
+    const connu = await getUser(idConnu);
+    if (connu) return connu;
+  }
+
+  // 2. Session existante (installations antérieures à la clé ci-dessus)
+  const reponseSession = await avecDelai(supabase.auth.getSession(), 4000);
+  const session = reponseSession?.data?.session;
 
   if (session?.user?.id) {
     const localUser = await getUser(session.user.id);
-    if (localUser) return localUser;
+    if (localUser) {
+      await AsyncStorage.setItem(CLE_USER, localUser.id);
+      return localUser;
+    }
   }
 
-  // 2. Connexion anonyme Supabase
-  const { data, error } = await supabase.auth.signInAnonymously();
-  if (error || !data.user) {
-    // Fallback 100% offline si Supabase indisponible
+  // 3. Connexion anonyme Supabase
+  const reponse = await avecDelai(supabase.auth.signInAnonymously(), 8000);
+  if (!reponse || reponse.error || !reponse.data.user) {
+    // 4. Serveur injoignable : compte provisoire, rattaché plus tard
     return createOfflineUser();
   }
 
-  const userId = data.user.id;
+  const userId = reponse.data.user.id;
+  await AsyncStorage.setItem(CLE_USER, userId);
   const existingUser = await getUser(userId);
   if (existingUser) return existingUser;
 
@@ -98,8 +122,8 @@ export async function pushUserProfile(user: UserProfile): Promise<void> {
 
 /** Identifiant du compte Supabase courant, ou null si hors ligne / sans session. */
 export async function getSessionUserId(): Promise<string | null> {
-  const { data } = await supabase.auth.getSession();
-  return data?.session?.user?.id ?? null;
+  const reponse = await avecDelai(supabase.auth.getSession(), 5000);
+  return reponse?.data?.session?.user?.id ?? null;
 }
 
 /**
@@ -155,4 +179,5 @@ function generatePseudonyme(): string {
 export async function signOut(): Promise<void> {
   await supabase.auth.signOut();
   await AsyncStorage.removeItem(CLE_USER_HORS_LIGNE);
+  await AsyncStorage.removeItem(CLE_USER);
 }
